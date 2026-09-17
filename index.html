@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <title>Study Hub</title>
+  <meta name="description" content="Notes, slides, flashcards, a map of what you know, and a planner for your classes.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='black'/><rect x='9' y='9' width='14' height='14' fill='white'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/calendar.css">
+  <link rel="stylesheet" href="css/leetcode.css">
+  <link rel="stylesheet" href="css/planner.css">
+</head>
+<body>
+  <a class="skip" href="#view">Skip to content</a>
+
+  <aside id="sidebar" class="sidebar" aria-label="Main">
+    <a class="brand" href="#/dashboard"><span class="brand-mark" aria-hidden="true"></span>Study Hub</a>
+    <nav id="nav" aria-label="Sections"></nav>
+    <div class="nav-heading">Classes</div>
+    <nav id="nav-classes" aria-label="Classes"></nav>
+    <nav id="nav-foot" aria-label="Settings"></nav>
+  </aside>
+  <div id="scrim" aria-hidden="true"></div>
+
+  <div class="shell">
+    <header class="topbar">
+      <button id="nav-toggle" class="icon-btn only-mobile" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" data-icon="menu"></button>
+      <div class="search-wrap">
+        <span class="search-icon" data-icon="search" data-size="16" aria-hidden="true"></span>
+        <input id="search" type="search" placeholder="Search everything" autocomplete="off" aria-label="Search notes, topics, cards and deadlines" aria-controls="search-results">
+        <kbd class="search-kbd">Ctrl K</kbd>
+        <div id="search-results" role="listbox" aria-label="Search results" hidden></div>
+      </div>
+      <a class="btn" href="#/import" data-icon="upload" data-size="16"><span class="hide-sm">Add material</span></a>
+      <button id="quick-note" class="btn" data-icon="plus" data-size="16"><span class="hide-sm">Note</span></button>
+      <a id="timer-pill" class="timer-pill" href="#/focus" hidden></a>
+      <button id="bell" class="icon-btn bell" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false"></button>
+      <button id="theme-toggle" class="icon-btn" aria-label="Switch between white and black" data-icon="theme"></button>
+    </header>
+    <main id="main">
+      <div id="view" tabindex="-1"></div>
+    </main>
+  </div>
+
+  <script src="js/core.js"></script>
+  <script src="js/seed.js"></script>
+  <script src="js/packs-data.js"></script>
+  <script src="js/packs.js"></script>
+  <script src="js/packs-more.js"></script>
+  <script src="js/graph.js"></script>
+  <script src="js/code.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/importer.js"></script>
+  <script src="js/views-main.js"></script>
+  <script src="js/views-notes.js"></script>
+  <script src="js/views-ai.js"></script>
+  <script src="js/views-cards.js"></script>
+  <script src="js/views-graph.js"></script>
+  <script src="js/views-plan.js"></script>
+  <script src="js/views-calendar.js"></script>
+  <script src="js/leetcode-parse.js"></script>
+  <script src="js/leetcode-data.js"></script>
+  <script src="js/views-leetcode.js"></script>
+  <script src="js/views-schedule.js"></script>
+  <script src="js/views-grades.js"></script>
+  <script src="js/views-exams.js"></script>
+  <script src="js/notify.js"></script>
+  <script src="js/focus.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

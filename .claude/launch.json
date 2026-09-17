@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "study-hub",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5178"],
+      "port": 5178
+    },
+    {
+      "name": "study-hub-calendar",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5181"],
+      "port": 5181
+    },
+    {
+      "name": "study-hub-planner",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5183"],
+      "port": 5183
+    }
+  ]
+}

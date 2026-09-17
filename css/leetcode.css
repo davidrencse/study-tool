@@ -1,0 +1,74 @@
+/* ==========================================================================
+   LeetCode section. Uses the tokens from styles.css.
+   Difficulty is shown by weight, not colour: Easy dashed, Medium outlined,
+   Hard inverted.
+   ========================================================================== */
+
+.lc-diff { font-variant-numeric: tabular-nums; }
+.lc-easy.tag { border-style: dashed; color: var(--ink-2); }
+.lc-hard.tag { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.index-card .lc-hard.tag, .row-main .lc-hard.tag { background: var(--ink); color: var(--paper); }
+
+.lc-num {
+  display: inline-block; min-width: 3.4em; margin-right: 8px;
+  font-family: var(--mono); font-size: 0.75rem; font-weight: 500; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lc-rows .row-meta { padding-left: calc(0.75rem * 3.4 + 8px); }
+.lc-due-now { font-weight: 650; padding: 2px 8px; border-radius: 99px; background: var(--ink); color: var(--paper); }
+
+.lc-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.lc-filters input[type='search'] { flex: 1 1 200px; width: auto; min-height: 34px; padding-top: 5px; padding-bottom: 5px; }
+.lc-filters select { max-width: 100%; }
+
+/* difficulty split under the counts */
+.lc-split { display: flex; gap: 3px; height: 8px; margin: 16px 0 4px; }
+.lc-split span { border-radius: 2px; min-width: 0; }
+.lc-split .lc-easy { background: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1px var(--ink); }
+.lc-split .lc-medium { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink); }
+.lc-split .lc-hard { background: var(--ink); }
+.lc-heatmap { grid-template-rows: repeat(7, 10px); grid-auto-columns: 10px; gap: 2px; }
+
+/* pattern breakdown doubles as a filter */
+.lc-patterns { list-style: none; margin: 0 -8px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.lc-pattern {
+  width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center;
+  padding: 7px 8px; border: 0; border-radius: var(--radius-sm); background: none; cursor: pointer; text-align: left; font-size: 0.8125rem;
+}
+.lc-pattern:hover { background: var(--wash); }
+.lc-pattern .num { font-weight: 650; }
+.lc-bar { grid-column: 1 / -1; height: 4px; border-radius: 4px; background: var(--wash-2); overflow: hidden; }
+.lc-bar i { display: block; height: 100%; background: var(--ink); border-radius: inherit; }
+.lc-pattern.active { background: var(--ink); color: var(--paper); }
+.lc-pattern.active .lc-bar { background: color-mix(in srgb, var(--paper) 25%, transparent); }
+.lc-pattern.active .lc-bar i { background: var(--paper); }
+
+/* detail */
+.lc-kicker { gap: 10px; margin-bottom: 8px; font-size: 0.8125rem; }
+.lc-next { margin: 4px 0 0; font-size: 0.9375rem; }
+.lc-pager { display: flex; justify-content: space-between; gap: 8px; }
+.lc-pre {
+  margin: 0; padding: 14px 16px; overflow-x: auto; border-radius: var(--radius-sm);
+  background: var(--wash); font-size: 0.8125rem; line-height: 1.6; tab-size: 4;
+}
+.view-leetcode .codeblock, .view-lcpractice .codeblock { max-width: 100%; min-width: 0; }
+.view-leetcode .codeblock pre, .view-lcpractice .codeblock pre { tab-size: 4; overflow-x: auto; max-width: 100%; }
+
+/* practice */
+.lc-review .review-top .btn { flex-shrink: 0; }
+.lc-review .ic-head .tag { vertical-align: 1px; }
+.lc-review .ic-text { font-size: 1.5rem; }
+.lc-review .is-back .ic-text { font-size: 1.125rem; }
+.lc-review-code { min-width: 0; }
+.lc-notes { border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; }
+.lc-notes summary { cursor: pointer; padding: 10px 0; font-size: 0.875rem; font-weight: 550; }
+.lc-notes[open] { padding-bottom: 10px; }
+
+@media (max-width: 600px) {
+  .lc-filters .seg { order: 2; }
+  .lc-filters select { flex: 1 1 140px; }
+  .lc-rows .row-meta { padding-left: 0; }
+  .lc-num { min-width: 2.6rem; margin-right: 4px; }
+  .lc-review .ic-text { font-size: 1.25rem; }
+  .lc-pre { margin: 0 -4px; font-size: 0.75rem; }
+}
