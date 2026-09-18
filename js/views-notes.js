@@ -2,7 +2,77 @@
    views-notes.js — Markdown notes with [[wikilinks]], backlinks, AI hand-offs
    ========================================================================== */
 
-const NotesUI = { mode: 'split', q: '', kind: '' };
+const NotesUI = { mode: 'preview', q: '', kind: '' };
+
+function googleDocEmbed(raw, preview = true) {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' || url.hostname !== 'docs.google.com' || url.username || url.password || url.port) return null;
+    if (!/^\/document\/(?:u\/\d+\/)?d\/(?:e\/)?[\w-]+(?:\/(?:edit|view|preview|pub))?\/?$/.test(url.pathname)) return null;
+    if (preview && !/\/d\/e\//.test(url.pathname)) {
+      url.pathname = url.pathname.replace(/\/(?:edit|view|preview)\/?$/, '').replace(/\/$/, '') + '/preview';
+    }
+    if (/\/pub\/?$/.test(url.pathname)) url.searchParams.set('embedded', 'true');
+    return url.href;
+  } catch (_) { return null; }
+}
+
+function googleDocPanel(n) {
+  const doc = n.googleDoc || {};
+  const embed = googleDocEmbed(doc.embedUrl || doc.url, !doc.embedUrl);
+  const open = googleDocEmbed(doc.url, false);
+  return `<section class="google-doc-panel" aria-label="Google Docs">
+    <details>
+      <summary>${embed ? 'Google Docs settings' : 'Attach a Google Doc'}</summary>
+      <form class="google-doc-form">
+        <label>Document or section URL<input name="doc-url" type="url" placeholder="https://docs.google.com/document/d/…/edit#heading=…" value="${esc(doc.url)}" required></label>
+        <label>Custom embed URL (optional)<input name="embed-url" type="url" placeholder="Published or preview Google Docs URL" value="${esc(doc.embedUrl)}"></label>
+        <p class="muted small">Paste a heading or bookmark link to save your place. Google may ignore section targets inside the embed; Open in Google Docs keeps the full link. Private docs need Google sign-in and access. A published URL can be used for a read-only embed.</p>
+        <div class="btn-row"><button class="btn sm" type="submit">Save document</button>${doc.url ? '<button class="btn sm ghost" type="button" data-act="remove-doc">Remove document</button>' : ''}</div>
+      </form>
+    </details>
+    ${embed && open ? `<div class="source-bar"><strong>Google Docs</strong><span class="spacer"></span><a class="btn sm" href="${esc(open)}" target="_blank" rel="noopener">Open in Google Docs</a></div>
+      <iframe class="google-doc-frame" src="${esc(embed)}" title="Google document for ${esc(n.title || 'Untitled note')}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>
+      <p class="muted small">If Google blocks the embed or asks you to sign in, use Open in Google Docs. Document images are displayed by Google.</p>` : ''}
+  </section>`;
+}
+
+function slidePdfPath(n) {
+  const path = n.source?.path || '';
+  return /^library\/[^?#]+\.pdf(?:[?#].*)?$/i.test(path) ? path : '';
+}
+
+function isPdfNote(n) {
+  return !!slidePdfPath(n) || n.source?.kind === 'pdf';
+}
+
+function notePdfFiles(n) {
+  const files = [];
+  const add = (path, label) => {
+    if (!/^library\/[^?#]+\.pdf(?:[?#].*)?$/i.test(path)) return;
+    let key;
+    try { key = decodeURI(path); } catch (_) { key = path; }
+    if (!files.some((f) => f.key === key)) files.push({ path, label, key });
+  };
+  if (slidePdfPath(n)) add(slidePdfPath(n), n.source.name || 'Original PDF');
+  for (const match of (n.body || '').matchAll(/\[([^\]]+)\]\((library\/[^\s)]+\.pdf(?:[?#][^\s)]*)?)\)/gi)) add(match[2], match[1]);
+  return files;
+}
+
+function slidePdfPanel(n) {
+  const files = notePdfFiles(n);
+  const path = files.find((f) => f.path === n.pdfViewPath)?.path || slidePdfPath(n) || files[0]?.path || '';
+  if (!isPdfNote(n)) return '';
+  if (!path && !n.source.fileId) return '<section class="slide-pdf-panel"><p>The original PDF is missing. Import the PDF again to display it.</p></section>';
+  return `<section class="slide-pdf-panel" aria-label="Original PDF">
+    <div class="source-bar"><strong>Original PDF</strong><span class="spacer"></span>
+      ${files.length > 1 ? `<select class="pdf-file-select" aria-label="PDF document">${files.map((f) => `<option value="${esc(f.path)}" ${path === f.path ? 'selected' : ''}>${esc(f.label)} — ${esc(f.key.split('/').pop().split('#')[0])}</option>`).join('')}</select>` : ''}
+      ${path ? `<a class="btn sm pdf-open" href="${esc(path)}" target="_blank" rel="noopener">Open PDF</a>` : '<button class="btn sm" data-act="original">Open PDF</button>'}
+    </div>
+    <iframe class="slide-pdf-frame" ${path ? `src="${esc(path)}"` : ''} title="Original PDF for ${esc(n.title)}"></iframe>
+    <p class="muted small pdf-status">${path ? 'Use Open PDF if your browser cannot display the document here.' : 'Loading original PDF…'}</p>
+  </section>`;
+}
 
 function noteBacklinks(note) {
   return S().notes.filter((n) => n.id !== note.id && extractWikilinks(n.body).some((w) => {
@@ -37,6 +107,7 @@ Views.notes = {
     const q = classFilter ? `?class=${classFilter}` : '';
 
     return `
+    <header class="page-head materials-head"><div><h1>Notes & slides</h1><p class="lede">Your class materials, with space to think.</p></div><a class="btn primary" href="#/import${q}">${icon('upload',16)}Add material</a></header>
     <div class="notes-layout mode-${NotesUI.mode}">
       <aside class="panel notes-side" aria-label="Note list">
         <div class="notes-side-head">
@@ -64,6 +135,7 @@ Views.notes = {
   },
 
   editor(n) {
+    const pdf = isPdfNote(n);
     const back = noteBacklinks(n);
     const out = [...new Set(extractWikilinks(n.body))];
     return `
@@ -71,18 +143,20 @@ Views.notes = {
       <div class="note-meta">
         <select data-field="classId" aria-label="Class">${classOptions(n.classId, { includeNone: true, noneLabel: 'No class' })}</select>
         <input data-field="tags" value="${esc(n.tags.join(', '))}" placeholder="Tags, separated by commas" aria-label="Tags">
-        <div class="seg sm" role="radiogroup" aria-label="Editor layout">
+        ${pdf ? '' : `<div class="seg sm" role="radiogroup" aria-label="Editor layout">
           ${[['write', 'Write'], ['split', 'Split'], ['preview', 'Read']].map(([m, l]) => `<label><input type="radio" name="mode" value="${m}" ${NotesUI.mode === m ? 'checked' : ''}><span>${l}</span></label>`).join('')}
-        </div>
+        </div>`}
       </div>
-      ${n.source ? `
+      ${n.source && !pdf ? `
         <div class="source-bar">
           ${icon(n.source.kind === 'pptx' || n.source.kind === 'pdf' ? 'slides' : 'file', 16)}
           <span>Imported from <strong>${esc(n.source.name)}</strong>${n.source.units ? `, ${plural(n.source.units, n.source.unitLabel || 'page')}` : ''}</span>
           <span class="spacer"></span>
           ${n.source.fileId ? `<button class="btn sm" data-act="original">${n.source.kind === 'pdf' ? 'Open original' : 'Download original'}</button>` : ''}
         </div>` : ''}
-      <div class="md-toolbar" role="toolbar" aria-label="Formatting">
+      ${slidePdfPanel(n)}
+      ${!pdf || n.googleDoc ? googleDocPanel(n) : ''}
+      ${pdf ? `<label class="pdf-annotations">Your notes<textarea class="pdf-notes" rows="4" placeholder="Write your own notes about these slides…">${esc(n.annotations || '')}</textarea></label>` : `<div class="md-toolbar" role="toolbar" aria-label="Formatting">
         <button data-md="h" title="Heading" aria-label="Heading">H</button>
         <button data-md="b" title="Bold (Ctrl+B)" aria-label="Bold"><b>B</b></button>
         <button data-md="i" title="Italic (Ctrl+I)" aria-label="Italic"><i>I</i></button>
@@ -90,6 +164,7 @@ Views.notes = {
         <button data-md="ul" title="Bulleted list" aria-label="Bulleted list">List</button>
         <button data-md="todo" title="Checklist" aria-label="Checklist">Todo</button>
         <button data-md="code" title="Code" aria-label="Code">Code</button>
+        <button data-md="image" title="Insert image URL" aria-label="Insert image URL">Image</button>
         <select data-md="link" aria-label="Link to a topic or note">
           <option value="">Link to...</option>
           <optgroup label="Classes">${S().classes.map((c) => `<option>${esc(c.name)}</option>`).join('')}</optgroup>
@@ -102,7 +177,7 @@ Views.notes = {
       <div class="md-panes">
         <textarea class="md-input" spellcheck="true" aria-label="Note text" placeholder="Write in Markdown. Link ideas with [[Topic name]].">${esc(n.body)}</textarea>
         <article class="md-preview prose">${renderMarkdown(n.body)}</article>
-      </div>
+      </div>`}
       <footer class="note-foot">
         <dl class="link-summary">
           <div><dt>Links</dt><dd>${out.map((w) => `<a href="#" class="wikilink ${resolveWiki(w) ? '' : 'missing'}" data-wiki="${esc(w)}">${esc(w)}</a>`).join(' ') || '<span class="muted">None</span>'}</dd></div>
@@ -110,6 +185,7 @@ Views.notes = {
         </dl>
         <div class="btn-row">
           <a class="btn sm" href="#/summary?note=${n.id}">Summarize</a>
+          ${n.classId?`<a class="btn sm" href="#/practice?tab=prompt&class=${n.classId}&note=${n.id}">Make practice test</a>`:''}
           <a class="btn sm" href="#/assist?note=${n.id}${n.classId ? `&class=${n.classId}` : ''}">Ask ChatGPT</a>
           <a class="btn sm" href="#/cards?tab=import&note=${n.id}${n.classId ? `&class=${n.classId}` : ''}">Make flashcards</a>
           <a class="btn sm ghost" href="#/graph?focus=n:${n.id}">Show on map</a>
@@ -157,6 +233,7 @@ Views.notes = {
       }
       const act = e.target.closest('[data-act]')?.dataset.act;
       if (act === 'new') {
+        NotesUI.mode='write';
         const note = createNote({ classId: query.class || '' });
         location.hash = `#/notes/${note.id}${query.class ? `?class=${query.class}` : ''}`;
       }
@@ -185,6 +262,72 @@ Views.notes = {
     });
 
     if (!n) return;
+    $('.pdf-file-select', el)?.addEventListener('change', (e) => {
+      const path = e.target.value;
+      if (!notePdfFiles(n).some((f) => f.path === path)) return;
+      n.pdfViewPath = path;
+      $('.slide-pdf-frame', el).src = path;
+      $('.pdf-open', el).href = path;
+      Store.save();
+    });
+    const pdfFrame = $('.slide-pdf-frame', el);
+    if (pdfFrame && !slidePdfPath(n)) {
+      FileStore.get(n.source.fileId).then((blob) => {
+        if (!el.isConnected) return;
+        const status = $('.pdf-status', el);
+        if (!blob) {
+          pdfFrame.remove();
+          status.textContent = 'The original PDF is missing from this browser. Import the file again; backups contain extracted text but not original files.';
+          return;
+        }
+        this._pdfUrl = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+        pdfFrame.src = this._pdfUrl;
+        status.textContent = 'Use Open PDF if the embedded viewer is unavailable.';
+      }).catch(() => {
+        if (!el.isConnected) return;
+        pdfFrame.remove();
+        $('.pdf-status', el).textContent = 'Could not load the original PDF from browser storage. Try importing it again.';
+      });
+    }
+    $('.google-doc-form', el)?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const url = e.target.elements['doc-url'].value.trim();
+      const embedUrl = e.target.elements['embed-url'].value.trim();
+      if (!googleDocEmbed(url, false) || (embedUrl && !googleDocEmbed(embedUrl, false))) {
+        return toast('Use an HTTPS Google Docs document, preview or published URL.', 'warn');
+      }
+      n.googleDoc = { url, embedUrl };
+      n.updated = Date.now();
+      Store.save();
+      App.refresh();
+    });
+    $('[data-act="remove-doc"]', el)?.addEventListener('click', () => {
+      delete n.googleDoc;
+      n.updated = Date.now();
+      Store.save();
+      App.refresh();
+    });
+    $('.note-title', el).addEventListener('input', (e) => {
+      n.title = e.target.value;
+      const item = $(`[data-note="${n.id}"] [data-title]`, el);
+      if (item) item.textContent = n.title || 'Untitled';
+      touch();
+    });
+    $('[data-field="classId"]', el).addEventListener('change', (e) => {
+      n.classId = e.target.value;
+      touch();
+    });
+    $('[data-field="tags"]', el).addEventListener('change', (e) => {
+      n.tags = e.target.value.split(',').map((t) => t.trim()).filter(Boolean);
+      touch();
+    });
+    if (isPdfNote(n)) {
+      $('.pdf-notes', el).addEventListener('input', (e) => {
+        n.annotations = e.target.value;
+        touch();
+      });
+      return;
+    }
     const ta = $('.md-input', el);
     const preview = $('.md-preview', el);
 
@@ -225,20 +368,6 @@ Views.notes = {
       }
     });
 
-    $('.note-title', el).addEventListener('input', (e) => {
-      n.title = e.target.value;
-      const item = $(`[data-note="${n.id}"] [data-title]`, el);
-      if (item) item.textContent = n.title || 'Untitled';
-      touch();
-    });
-    $('[data-field="classId"]', el).addEventListener('change', (e) => {
-      n.classId = e.target.value;
-      touch();
-    });
-    $('[data-field="tags"]', el).addEventListener('change', (e) => {
-      n.tags = e.target.value.split(',').map((t) => t.trim()).filter(Boolean);
-      touch();
-    });
     $$('input[name="mode"]', el).forEach((r) =>
       r.addEventListener('change', () => {
         NotesUI.mode = r.value;
@@ -255,6 +384,12 @@ Views.notes = {
       if (k === 'i') wrapSel(ta, '*', '*');
       if (k === 'hl') wrapSel(ta, '==', '==');
       if (k === 'code') wrapSel(ta, '`', '`');
+      if (k === 'image') {
+        const url = prompt('Image URL (https://… or library/…)');
+        if (!url) return;
+        if (safeLink(url) === '#' || /[\s()]/.test(url.trim())) return toast('Use an image URL without spaces or parentheses (encode them in the URL).', 'warn');
+        insertAtCursor(ta, `![Image](${url.trim()})`);
+      }
       if (k === 'h') prefixLine(ta, '## ');
       if (k === 'ul') prefixLine(ta, '- ');
       if (k === 'todo') prefixLine(ta, '- [ ] ');
@@ -264,6 +399,10 @@ Views.notes = {
       insertAtCursor(ta, `[[${e.target.value}]]`);
       e.target.value = '';
     });
+  },
+  unmount() {
+    if (this._pdfUrl) URL.revokeObjectURL(this._pdfUrl);
+    this._pdfUrl = null;
   },
 };
 
@@ -304,7 +443,10 @@ const ImportUI = {
       const folder = (file.webkitRelativePath || '').split('/').slice(0, -1).join(' ');
       const item = { id: uid(), file, kind, folder, status: 'reading', title: Importer.baseName(file.name), classId: classId || this.classId, target: 'new' };
       this.items.push(item);
-      Importer.extract(file)
+      const reading = kind === 'pdf'
+        ? Promise.resolve({ title: Importer.baseName(file.name), body: '', tags: ['slides'], units: 1, unitLabel: 'file' })
+        : Importer.extract(file);
+      reading
         .then((data) => {
           Object.assign(item, { status: 'ready', data, title: data.title });
           if (!item.classId) item.classId = Importer.guessClass(file.name + ' ' + folder, data.body);
@@ -364,7 +506,7 @@ Views.import = {
                     <td>${it.status === 'ready' ? `<select data-item="${it.id}" data-k="classId" aria-label="Class">${classOptions(it.classId, { includeNone: true, noneLabel: 'No class' })}</select>` : ''}</td>
                     <td>${it.status === 'ready' ? `<select data-item="${it.id}" data-k="target" aria-label="Destination">
                       <option value="new">New note</option>
-                      <optgroup label="Add to the end of">${S().notes.filter((n) => !it.classId || n.classId === it.classId).map((n) => `<option value="${n.id}" ${it.target === n.id ? 'selected' : ''}>${esc(n.title)}</option>`).join('')}</optgroup>
+                      ${it.kind === 'pdf' ? '' : `<optgroup label="Add to the end of">${S().notes.filter((n) => !it.classId || n.classId === it.classId).map((n) => `<option value="${n.id}" ${it.target === n.id ? 'selected' : ''}>${esc(n.title)}</option>`).join('')}</optgroup>`}
                     </select>` : ''}</td>
                     <td>${it.status !== 'done' ? `<button class="icon-btn sm" data-remove="${it.id}" aria-label="Remove ${esc(it.file.name)}">${icon('close', 14)}</button>` : icon('check', 16)}</td>
                   </tr>`).join('')}
@@ -373,7 +515,7 @@ Views.import = {
           </div>
           <div class="btn-row">
             <button class="btn primary" data-act="import" ${ready.length ? '' : 'disabled'}>Add ${plural(ready.length, 'note')}</button>
-            <label class="check"><input type="checkbox" data-keep ${ImportUI.keepOriginals !== false ? 'checked' : ''}> Keep the original files so I can open them later</label>
+            <label class="check"><input type="checkbox" data-keep ${ImportUI.keepOriginals !== false ? 'checked' : ''}> Keep original Office files (PDFs are always kept)</label>
             <span class="spacer"></span>
             <button class="btn ghost" data-act="clear">Clear list</button>
           </div>
@@ -438,12 +580,16 @@ Views.import = {
         for (const it of ImportUI.items.filter((i) => i.status === 'ready')) {
           const d = it.data;
           const source = { name: it.file.name, kind: it.kind, kindLabel: Importer.kindLabel[it.kind], units: d.units, unitLabel: d.unitLabel, size: it.file.size, added: Date.now() };
-          if (keep && ['pdf', 'pptx', 'docx'].includes(it.kind)) {
+          if (it.kind === 'pdf' || (keep && ['pptx', 'docx'].includes(it.kind))) {
             source.fileId = uid();
             try {
               await FileStore.put(source.fileId, it.file);
             } catch (_) {
               delete source.fileId;
+              if (it.kind === 'pdf') {
+                Object.assign(it, { status: 'error', error: 'Could not store the PDF. Free browser storage and try again.' });
+                continue;
+              }
             }
           }
           if (it.kind === 'code') {
@@ -455,7 +601,7 @@ Views.import = {
             continue;
           }
           let note;
-          if (it.target === 'new') {
+          if (it.target === 'new' || it.kind === 'pdf') {
             note = createNote({ title: it.title.trim() || d.title, classId: it.classId, body: d.body, tags: d.tags, source });
           } else {
             note = getNote(it.target);

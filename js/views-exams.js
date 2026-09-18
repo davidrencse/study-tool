@@ -2,6 +2,30 @@
    views-exams.js — exam countdowns, readiness, and day-by-day study plans
    ========================================================================== */
 
+function examCountdownText(e, now=new Date()) {
+  if(e.done)return 'Completed';
+  if(!e.date)return 'Date not set';
+  if(!e.time){const current=ymd(now);const days=daysBetween(current,e.date);return days<0?'Date passed':days===0?'Exam today':`${days} ${days===1?'day':'days'} to go`;}
+  const target=new Date(`${e.date}T${e.time}`);const seconds=Math.ceil((target-now)/1000);
+  if(!Number.isFinite(seconds))return 'Check exam date';
+  if(seconds<=0)return 'Start time passed';
+  const d=Math.floor(seconds/86400),h=Math.floor(seconds%86400/3600),m=Math.floor(seconds%3600/60),sec=seconds%60;
+  return `${d?d+'d ':''}${h}h ${m}m ${sec}s to go`;
+}
+function examCountdown(e) {
+  return `<span class="exam-live-countdown" data-exam-countdown="${esc(e.id)}" role="timer" aria-label="Countdown to ${esc(e.title)}">${examCountdownText(e)}</span>`;
+}
+function examCountdownPanel(classId='',limit=Infinity) {
+  const exams=deadlines().filter(e=>e.type==='exam'&&!e.done&&e.date>=todayStr()&&(!classId||e.classId===classId)).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  if(!exams.length)return '';
+  return `<section class="panel exam-countdown-panel"><header class="panel-head"><h2>Midterms & finals</h2><a class="quiet-link" href="#/exams">All exams & study plans →</a></header><div class="exam-countdown-grid">${exams.slice(0,limit).map(e=>`<article><p class="small muted">${mark(e.classId)}${esc(className(e.classId))}</p><h3>${esc(e.title)}</h3>${examCountdown(e)}<p class="small muted">${fmtDate(e.date,{month:'short',day:'numeric',year:'numeric'})}${e.time?' · '+fmtTime(e.time):' · Time not set'}</p><button class="btn sm ghost" data-countdown-edit="${e.id}">Edit date & time</button></article>`).join('')}</div></section>`;
+}
+function startExamCountdowns(root) {
+  root.addEventListener('click',event=>{const button=event.target.closest('[data-countdown-edit]');if(button)editEventModal(button.dataset.countdownEdit);});
+  const tick=()=>{for(const el of root.querySelectorAll('[data-exam-countdown]')){const e=S().events.find(e=>e.id===el.dataset.examCountdown);if(e&&el.firstChild)el.firstChild.nodeValue=examCountdownText(e);}};
+  tick();return root.querySelector('[data-exam-countdown]')?setInterval(tick,1000):null;
+}
+
 const ExamUI = { editing: '' };
 
 function inDays(date) {
@@ -93,7 +117,7 @@ Views.exams = {
     <article class="panel exam-card" data-exam="${e.id}">
       <div class="exam-head">
         <div class="countdown ${days <= 3 ? 'urgent' : ''}">
-          <span class="num">${days}</span><small>${days === 1 ? 'day' : 'days'}</small>
+          ${examCountdown(e)}
         </div>
         <div class="exam-title">
           <p class="kind">${mark(e.classId)}${esc(className(e.classId))}</p>
@@ -117,7 +141,7 @@ Views.exams = {
             <div class="btn-row">
               <button class="btn sm ghost" data-act="topics">Choose topics</button>
               <a class="btn sm" href="#/cards?class=${e.classId}">Review cards${due ? ` (${due} due)` : ''}</a>
-              <a class="btn sm" href="#/assist?class=${e.classId}&tpl=exam">Practice exam ${icon('external', 13)}</a>
+              <a class="btn sm" href="#/practice?tab=prompt&class=${e.classId}&exam=${e.id}">Make a practice test ${icon('exam', 13)}</a>
             </div>`}
         </div>
 
@@ -165,7 +189,7 @@ Views.exams = {
         for (const x of items) {
           const title = `${getClass(e.classId)?.short || ''} ${e.title}: ${x.text}`.trim();
           if (S().tasks.some((t) => t.title === title && t.date === today)) continue;
-          S().tasks.push({ id: uid(), title, date: today, done: false, category: 'School', priority: 'high' });
+          S().tasks.push({ id: uid(), title, date: today, done: false, category: 'School', priority: 'high', classId:e.classId });
           n++;
         }
         toast(n ? `Added ${plural(n, 'task')} for today` : 'Today’s plan is already in Tasks', 'ok');

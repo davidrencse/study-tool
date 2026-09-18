@@ -1,0 +1,29 @@
+EXAM_TITLE: Concurrency practice
+BEGIN_QUESTION 1
+TYPE: MCQ
+TOPIC: Concurrency
+SOURCE: Class notes
+PROMPT: What protects a critical section?
+A) A mutex
+B) DNS
+C) HTML
+D) A filename
+ANSWER: A
+EXPLANATION: A mutex provides mutual exclusion.
+END_QUESTION
+BEGIN_QUESTION 2
+TYPE: TRUE_FALSE
+TOPIC: Concurrency
+SOURCE: Class notes
+PROMPT: Race conditions always produce deterministic results.
+ANSWER: False
+EXPLANATION: Timing can change the result.
+END_QUESTION
+BEGIN_QUESTION 3
+TYPE: SHORT
+TOPIC: Concurrency
+SOURCE: Class notes
+PROMPT: Explain deadlock.
+ANSWER: Threads wait indefinitely for resources held by each other.
+EXPLANATION: Check for waiting, resource ownership and inability to progress.
+END_QUESTION

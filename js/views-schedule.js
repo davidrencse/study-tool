@@ -236,7 +236,7 @@ function deleteTodo(item) {
 const visibleTitles = (root) => $$('.td-title', root);
 
 Views.todo = {
-  title: 'To-do',
+  title: 'Lists',
 
   render(_, query) {
     const s = S();
@@ -290,7 +290,7 @@ Views.todo = {
               ${kids.length ? `<button class="td-count" data-tw title="${doneKids} of ${kids.length} done">${doneKids}/${kids.length}</button>` : ''}
               ${item.due && !item.done ? `<span class="tag ${overdue || soon ? 'solid' : ''}">${overdue ? 'Overdue' : 'Due'} ${relDay(item.due).replace(' overdue', '')}</span>` : ''}
               ${block ? `<a class="tag td-sched" href="#/schedule" title="On today’s schedule">${icon('clock', 12)}${fmtTime(block.time)}</a>` : ''}
-              ${item.url ? `<a class="td-link" href="${esc(item.url)}" target="_blank" rel="noopener" title="Open link" aria-label="Open link for ${label}">${icon('link', 14)}</a>` : ''}
+              ${item.url ? `<a class="td-link" href="${esc(safeLink(item.url))}" target="_blank" rel="noopener" title="Open link" aria-label="Open link for ${label}">${icon('link', 14)}</a>` : ''}
               ${item.done ? `<span class="td-when">${icon('check', 12)}${fmtDate(item.done)}</span>` : ''}
             </span>
           </div>
@@ -307,7 +307,7 @@ Views.todo = {
 
     return `
     <header class="page-head">
-      <div><h1>To-do</h1><p class="lede">${plural(leaves.length, 'thing')} left. ${doneWeek ? `${doneWeek} finished in the last 7 days.` : ''}</p></div>
+      <div><h1>Lists</h1><p class="lede">${plural(leaves.length, 'thing')} left. ${doneWeek ? `${doneWeek} finished in the last 7 days.` : ''}</p></div>
       <div class="head-actions">
         <button class="btn" data-act="paste">${icon('text', 16)}Paste a list</button>
         <a class="btn" href="#/schedule">${icon('clock', 16)}Schedule</a>
@@ -929,7 +929,7 @@ Views.schedule = {
           </ul>
         </section>
         <section class="panel">
-          <header class="panel-head"><h2>Daily habits</h2><a class="quiet-link" href="#/tasks?date=${d}">Edit</a></header>
+          <header class="panel-head"><h2>Daily habits</h2><a class="quiet-link" href="#/daily?date=${d}">Edit</a></header>
           ${progressBar(s.routines.length ? Math.round((rDone.length / s.routines.length) * 100) : 0)}
           <ul class="rows compact routine">
             ${s.routines.map((r) => `<li class="row task-row ${rDone.includes(r.id) ? 'done' : ''}"><label class="check grow"><input type="checkbox" data-habit="${r.id}" ${rDone.includes(r.id) ? 'checked' : ''}><span class="row-title">${esc(r.title)}</span></label></li>`).join('')}

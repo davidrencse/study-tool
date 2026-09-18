@@ -9,12 +9,18 @@ const Notify = {
   _timer: 0,
 
   start() {
+    if (this._timer) return;
     this.renderBell();
-    this.check();
+    this.check({quiet:true});
     this._timer = setInterval(() => this.check(), 30000);
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) this.check();
-    });
+    this._onVisible = () => { if (!document.hidden) this.check(); };
+    document.addEventListener('visibilitychange', this._onVisible);
+  },
+
+  stop() {
+    clearInterval(this._timer); this._timer = null;
+    document.removeEventListener('visibilitychange', this._onVisible);
+    this._onVisible = null;
   },
 
   settings() {
@@ -22,7 +28,7 @@ const Notify = {
   },
 
   /* ---------- the rules ---------- */
-  check() {
+  check({quiet=false}={}) {
     const s = S();
     if (!s) return;
     const st = this.settings();
@@ -76,8 +82,8 @@ const Notify = {
     const burst = fired.length > 5;
     const show = burst ? fired.slice(0, 4) : fired;
     for (const n of fired) s.notifyLog[n.key] = Date.now();
-    for (const n of show) this.push(n, { quiet: burst });
-    if (burst) this.push({ key: `digest:${Date.now()}`, title: `${fired.length - 4} more reminders`, body: 'Open the bell to see everything that’s due.', href: '#/calendar', kind: 'digest' });
+    for (const n of show) this.push(n, { quiet: quiet || burst || n.kind==='cards' });
+    if (burst) this.push({ key: `digest:${Date.now()}`, title: `${fired.length - 4} more reminders`, body: 'Open the bell to see everything that’s due.', href: '#/calendar', kind: 'digest' }, {quiet});
     this.prune();
     Store.save();
     this.renderBell();
@@ -91,7 +97,7 @@ const Notify = {
     s.notifications.length = Math.min(s.notifications.length, 60);
     s.notifyLog[n.key] ||= Date.now();
     if (!quiet) toast(n.title, n.kind === 'overdue' ? 'warn' : 'info');
-    this.desktop(item);
+    if (!quiet) this.desktop(item);
     if (this.settings().sound && !quiet) chime();
     this.renderBell();
   },

@@ -1,6 +1,6 @@
 /* ==========================================================================
    views-leetcode.js — solved LeetCode problems from the Obsidian vault,
-   with spaced re-solve practice.
+   with self-paced re-solve practice.
    Data: S().leetcode = { problems: [...], snapshot, vault, folder }
    Sources: js/leetcode-data.js (tools/sync-leetcode.js) or "Sync from vault".
    ========================================================================== */
@@ -18,6 +18,9 @@ const LC = {
       s.leetcode.vault = snap.vault || s.leetcode.vault;
       this.merge(snap.problems);
     }
+    let changed=false;
+    for(const p of s.leetcode.problems){for(const key of ['due','interval','ease'])if(key in p){delete p[key];changed=true;}}
+    if(changed)Store.save();
     return s.leetcode;
   },
   all() {
@@ -26,13 +29,6 @@ const LC = {
   get(num) {
     return this.all().find((p) => p.num === +num);
   },
-  due() {
-    const t = todayStr();
-    return this.all()
-      .filter((p) => p.due <= t)
-      .sort((a, b) => a.due.localeCompare(b.due) || a.num - b.num);
-  },
-
   /** Vault is the source for content; practice history and your edits stay. */
   merge(incoming) {
     const list = S().leetcode.problems;
@@ -52,10 +48,10 @@ const LC = {
       });
       if (!cur.patternSet) cur.pattern = p.pattern;
     }
-    // spread first reviews out, oldest solves first, three a day
+    // Keep imported problems available for practice at any time.
     fresh.sort((a, b) => a.solved.localeCompare(b.solved) || a.num - b.num);
-    fresh.forEach((p, i) => {
-      list.push({ ...p, keyIdea: '', patternSet: false, ease: 2.5, interval: 0, reps: 0, lapses: 0, due: addDays(todayStr(), Math.floor(i / 3)) });
+    fresh.forEach((p) => {
+      list.push({ ...p, keyIdea: '', patternSet: false, reps: 0, lapses: 0 });
       added++;
     });
     list.sort((a, b) => a.num - b.num);
@@ -92,21 +88,13 @@ const LC = {
     return this.merge(parsed);
   },
 
-  gradeLabel(p, g) {
-    const l = SRS.label(p, g);
-    return l.startsWith('<') ? 'Tomorrow' : l;
-  },
   grade(p, g) {
-    SRS.apply(p, g);
-    // re-solving twice in one sitting teaches nothing: a miss comes back tomorrow
-    if (p.interval === 0) {
-      p.due = addDays(todayStr(), 1);
-      Store.save();
-    }
+    p.reps=(p.reps||0)+1;
+    if(g===0)p.lapses=(p.lapses||0)+1;
+    p.lastReviewed=Date.now();p.lastGrade=g;
+    Store.save();
   },
 };
-
-const lcDue = () => LC.due();
 
 const LCUI = { q: '', diff: '', pattern: '', sort: 'num', session: null };
 
@@ -119,12 +107,6 @@ function lcCode(p) {
   return typeof codeBlock === 'function'
     ? codeBlock(p.code, p.lang)
     : `<pre class="lc-pre"><code>${esc(p.code)}</code></pre>`;
-}
-
-function lcDueLabel(p) {
-  const n = daysBetween(todayStr(), p.due);
-  if (n <= 0) return '<span class="when lc-due-now">Due</span>';
-  return `<span class="when muted">${n === 1 ? 'Tomorrow' : n < 30 ? `in ${n}d` : `in ${Math.round(n / 30)}mo`}</span>`;
 }
 
 function lcPatternOptions(selected, { includeAll = false } = {}) {
@@ -156,7 +138,6 @@ Views.leetcode = {
   render(params) {
     if (params[0]) return this.detail(params[0]);
     const all = LC.all();
-    const due = LC.due();
     const count = (d) => all.filter((p) => p.difficulty === d).length;
 
     if (!all.length) {
@@ -174,11 +155,11 @@ Views.leetcode = {
       <div class="page-head">
         <div>
           <h1>LeetCode</h1>
-          <p class="lede">${plural(all.length, 'problem')} solved. ${due.length ? `<a href="#/lcpractice" class="strong">${due.length} to re-solve</a> today.` : 'Nothing to re-solve today.'}</p>
+          <p class="lede">${plural(all.length, 'problem')} solved. Practice whenever you want.</p>
         </div>
         <div class="head-actions">
           <button class="btn" data-act="sync" title="Pick your vault or its Leetcode folder">${icon('folder', 16)}Sync from vault</button>
-          ${due.length ? `<a class="btn primary" href="#/lcpractice">${icon('leetcode', 16)}Practice ${due.length}</a>` : ''}
+          <a class="btn primary" href="#/lcpractice">${icon('leetcode',16)}Practice</a>
         </div>
       </div>
       <input type="file" hidden data-lc-folder webkitdirectory multiple>
@@ -193,7 +174,7 @@ Views.leetcode = {
             </div>
             <select data-f="pattern" class="compact" aria-label="Pattern">${lcPatternOptions(LCUI.pattern, { includeAll: true })}</select>
             <select data-f="sort" class="compact" aria-label="Sort">
-              ${[['num', 'By number'], ['recent', 'Recently solved'], ['due', 'Next to re-solve'], ['diff', 'By difficulty']].map(([v, l]) => `<option value="${v}" ${LCUI.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
+              ${[['num', 'By number'], ['recent', 'Recently solved'], ['diff', 'By difficulty']].map(([v, l]) => `<option value="${v}" ${LCUI.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
             </select>
           </div>
           <ul class="rows lc-rows" data-lc-list></ul>
@@ -235,20 +216,18 @@ Views.leetcode = {
     const sorters = {
       num: (a, b) => a.num - b.num,
       recent: (a, b) => b.solved.localeCompare(a.solved) || b.num - a.num,
-      due: (a, b) => a.due.localeCompare(b.due) || a.num - b.num,
       diff: (a, b) => order[b.difficulty] - order[a.difficulty] || a.num - b.num,
     };
     const list = LC.all()
       .filter((p) => (!LCUI.diff || p.difficulty === LCUI.diff) && (!LCUI.pattern || p.pattern === LCUI.pattern))
       .filter((p) => !q || String(p.num) === q || p.title.toLowerCase().includes(q) || p.code.toLowerCase().includes(q) || p.notes.toLowerCase().includes(q))
-      .sort(sorters[LCUI.sort]);
+      .sort(sorters[LCUI.sort] || sorters.num);
     const html = list.map((p) => `
       <li class="row">
         <a class="row-main" href="#/leetcode/${p.num}">
           <span class="row-title"><span class="lc-num">${p.num}</span>${esc(p.title)}</span>
           <span class="row-meta">${lcDiffTag(p.difficulty)}<span>${esc(p.pattern)}</span><span>Solved ${fmtDate(p.solved, { month: 'short', day: 'numeric', year: p.solved.slice(0, 4) === todayStr().slice(0, 4) ? undefined : 'numeric' })}</span></span>
         </a>
-        ${lcDueLabel(p)}
       </li>`).join('');
     return { html: html || '<li class="rows-empty">Nothing matches these filters.</li>', n: list.length };
   },
@@ -269,7 +248,7 @@ Views.leetcode = {
           <p class="lede">Solved ${fmtDate(p.solved, { month: 'long', day: 'numeric', year: 'numeric' })}${p.reps ? ` · re-solved ${plural(p.reps, 'time')}` : ''}${p.lapses ? ` · missed ${plural(p.lapses, 'time')}` : ''}</p>
         </div>
         <div class="head-actions">
-          <a class="btn primary" href="${esc(p.url)}" target="_blank" rel="noopener">${icon('external', 16)}Open on LeetCode</a>
+          <a class="btn primary" href="${esc(safeLink(p.url))}" target="_blank" rel="noopener">${icon('external', 16)}Open on LeetCode</a>
           <a class="btn" href="${esc(LC.obsidianUrl(p))}">${icon('notes', 16)}Open in Obsidian</a>
         </div>
       </div>
@@ -286,8 +265,7 @@ Views.leetcode = {
         <div class="stack">
           <section class="panel">
             <h2>Re-solve</h2>
-            <p class="lc-next">${p.due <= todayStr() ? '<strong>Due now.</strong>' : `Next on <strong>${fmtDate(p.due, { weekday: 'short', month: 'short', day: 'numeric' })}</strong>.`}</p>
-            <p class="hint">Solve it again from a blank editor, then grade how it went. Problems you struggle with come back sooner.</p>
+            <p class="hint">Solve it again from a blank editor, then compare with your saved solution. Practice at your own pace.</p>
             <a class="btn block" href="#/lcpractice?p=${p.num}">${icon('leetcode', 16)}Practice this one now</a>
           </section>
 
@@ -397,7 +375,7 @@ Views.lcpractice = {
   title: 'LeetCode practice',
 
   start(only) {
-    const queue = only ? [LC.get(only)].filter(Boolean) : LC.due();
+    const queue = only ? [LC.get(only)].filter(Boolean) : LC.all().slice().sort((a,b)=>(a.lastReviewed||0)-(b.lastReviewed||0)||a.num-b.num);
     LCUI.session = { queue: queue.map((p) => p.num), pos: 0, revealed: false, stats: [0, 0, 0, 0], single: !!only };
   },
 
@@ -412,9 +390,8 @@ Views.lcpractice = {
 
     if (s.pos >= s.queue.length) {
       const done = s.stats.reduce((a, b) => a + b, 0);
-      const upcoming = LC.all().filter((p) => p.due > todayStr()).sort((a, b) => a.due.localeCompare(b.due))[0];
       if (!done) {
-        return head + `<div class="panel">${emptyState('check', 'Nothing to re-solve today', upcoming ? `Next up: ${upcoming.num}. ${upcoming.title}, ${relDay(upcoming.due).toLowerCase()}.` : 'Sync your vault to add problems.', `<div class="btn-row center"><a class="btn" href="#/leetcode">Browse problems</a>${upcoming ? `<a class="btn" href="#/lcpractice?p=${upcoming.num}">Practice it early</a>` : ''}</div>`)}</div>`;
+        return head + `<div class="panel">${emptyState('check','No problems to practice','Sync your vault to add problems.','<a class="btn" href="#/leetcode">Browse problems</a>')}</div>`;
       }
       return head + `
         <div class="panel session-done">
@@ -452,7 +429,7 @@ Views.lcpractice = {
 
         ${!s.revealed ? `
           <div class="review-controls">
-            <a class="btn lg block" href="${esc(p.url)}" target="_blank" rel="noopener">${icon('external', 16)}Open on LeetCode</a>
+            <a class="btn lg block" href="${esc(safeLink(p.url))}" target="_blank" rel="noopener">${icon('external', 16)}Open on LeetCode</a>
             <button class="btn primary lg block" data-act="reveal">Show my solution <kbd>Space</kbd></button>
           </div>
         ` : `
@@ -461,7 +438,7 @@ Views.lcpractice = {
             ${p.notes ? `<details class="lc-notes"><summary>My notes</summary><div class="prose">${renderMarkdown(p.notes)}</div></details>` : ''}
             <div class="grades" role="group" aria-label="How did re-solving it go?">
               ${['Couldn’t', 'Struggled', 'Solved', 'Easy'].map((l, i) => `
-                <button class="grade ${i === 2 ? 'primary' : ''}" data-grade="${i}"><span>${l}</span><small>${LC.gradeLabel(p, i)}</small><kbd>${i + 1}</kbd></button>`).join('')}
+                <button class="grade ${i === 2 ? 'primary' : ''}" data-grade="${i}"><span>${l}</span><kbd>${i + 1}</kbd></button>`).join('')}
             </div>
           </div>
         `}

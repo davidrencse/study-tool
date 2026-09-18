@@ -1,7 +1,7 @@
 /* ==========================================================================
    importer.js — turn slide decks, documents and existing notes into notes
    PDF → pdf.js · PPTX / DOCX → JSZip + XML · MD / TXT / HTML → read directly
-   Libraries load on demand from cdnjs, so only the first import needs internet.
+   Libraries load on demand from cdnjs; a fresh tab needs internet or a cached copy.
    ========================================================================== */
 
 const Importer = {
@@ -70,7 +70,8 @@ const Importer = {
 
   async fromPdf(file) {
     const pdfjs = await this.pdfjs();
-    const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+    // Disable dynamic evaluation (Mozilla's workaround for CVE-2024-4367).
+    const doc = await pdfjs.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
     const parts = [];
     let firstLine = '';
     for (let p = 1; p <= doc.numPages; p++) {

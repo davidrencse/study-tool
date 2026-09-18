@@ -233,7 +233,7 @@ Views.dashboard = {
     const due = dueCards().length;
     const tasksToday = s.tasks.filter((x) => x.date === t);
     const openToday = tasksToday.filter((x) => !x.done).length;
-    const upcoming = deadlines().filter((e) => !e.done && e.date <= addDays(t, 14)).sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+    const upcoming = deadlines().filter((e) => !e.done && !e.title.includes('[Template]') && e.date <= addDays(t, 14)).sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
     const weekCount = deadlines().filter((e) => !e.done && e.date >= t && e.date <= addDays(t, 7)).length;
     const overdue = deadlines().filter((e) => !e.done && e.date < t).length;
     const agenda = occurrences(t, t).filter(isScheduled);
@@ -247,31 +247,52 @@ Views.dashboard = {
 
     const bits = [];
     if (classesToday) bits.push(`<a href="#/calendar">${plural(classesToday, 'class')}</a> today`);
-    bits.push(`<a href="#/calendar">${weekCount ? plural(weekCount, 'thing') : 'nothing'}</a> due this week`);
-    bits.push(`<a href="#/cards">${plural(due, 'card')}</a> to review`);
+    bits.push(`<a href="#/tasks?source=coursework&when=week">${weekCount ? plural(weekCount, 'thing') : 'nothing'}</a> due this week`);
+
     const sentence = bits.length > 1 ? `${bits.slice(0, -1).join(', ')} and ${bits[bits.length - 1]}` : bits[0];
     const mood = overdue
-      ? `<a href="#/calendar" class="strong">${plural(overdue, 'item')} overdue.</a> Knock ${overdue === 1 ? 'it' : 'those'} out first.`
+      ? `<a href="#/tasks?when=overdue" class="strong">${plural(overdue, 'item')} overdue.</a> Knock ${overdue === 1 ? 'it' : 'those'} out first.`
       : openToday === 0 && tasksToday.length
         ? 'Every task for today is done. Nice work.'
         : streak > 1 ? `You’re on a ${streak}-day review streak. Keep it going.` : 'One small step at a time.';
 
     return `
-    <header class="hello">
+    <header class="hello study-day">
+      <div class="study-date"><strong>${parseYmd(t).getDate()}</strong><span>${fmtDate(t,{month:'short',year:'numeric'})}</span><small>${fmtDate(t,{weekday:'long'})}</small></div>
       <div>
         <h1>${greeting()}.</h1>
-        <p class="lede">It’s ${fmtDate(t, { weekday: 'long', month: 'long', day: 'numeric' })}. You have ${sentence}. ${mood}</p>
+        <p class="lede">${sentence}.${overdue?` ${mood}`:''}</p>
       </div>
-      <div class="head-actions">
-        <a class="btn" href="#/import">${icon('upload', 16)}Add material</a>
-        <button class="btn" data-act="add-sched">${icon('plus', 16)}Event</button>
-        <button class="btn" data-act="add-event">${icon('plus', 16)}Deadline</button>
+      <div class="study-actions">
+        <a href="#/focus">${icon('timer',20)}<span>Start a focus session<small>Make time for your next topic</small></span>${icon('right',16)}</a>
+        <a href="#/practice?tab=prompt">${icon('exam',20)}<span>Build a practice test<small>Study from your class material</small></span>${icon('right',16)}</a>
       </div>
     </header>
 
-    ${typeof nowCard === 'function' ? nowCard({ compact: true }) : ''}
+    <div class="grid-2">
+      <section class="panel">
+        <header class="panel-head"><h2>Today’s plan</h2><a href="#/tasks" class="quiet-link">All tasks</a></header>
+        ${agenda.length ? `<h3 class="sub">Schedule</h3><ul class="rows">${agenda.map((e) => eventRow(e)).join('')}</ul><h3 class="sub">Tasks</h3>` : ''}
+        <form class="inline-add" data-form="quick-task">
+          <input name="title" placeholder="Add a task for today" autocomplete="off" aria-label="New task">
+          <button class="btn">Add</button>
+        </form>
+        <ul class="rows">${tasksToday.map(taskRow).join('') || '<li class="rows-empty">Nothing on your list yet. What’s one thing you want to get done?</li>'}</ul>
+        <a class="routine-line" href="#/daily">
+          <span>Daily routine</span><span class="num">${rDone} of ${s.routines.length}</span>
+          ${progressBar(s.routines.length ? Math.round((rDone / s.routines.length) * 100) : 0)}
+        </a>
+      </section>
 
-    <div class="glance">
+      <section class="panel">
+        <header class="panel-head"><h2>Coming up</h2><a href="#/calendar" class="quiet-link">Calendar</a></header>
+        <ul class="rows">${upcoming.slice(0,5).map((e) => eventRow(e)).join('') || '<li class="rows-empty">Nothing due in the next two weeks.</li>'}</ul>
+      </section>
+    </div>
+
+    ${examCountdownPanel('',2)}
+
+    <details class="dashboard-library"><summary>Study overview <span>Next exam, focus time and flashcards</span></summary><div class="glance">
       <a class="glance-card" href="#/calendar">
         <span class="glance-label">${icon('classes', 16)}Next class</span>
         ${next ? `<strong>${mark(next.classId)}${esc(className(next.classId))}</strong><span>${next.date === t ? 'Today' : relDay(next.date)}, ${fmtSpan(next)}${next.location ? ` · ${esc(next.location)}` : ''}</span>`
@@ -292,38 +313,10 @@ Views.dashboard = {
         <strong><span class="big num">${due}</span> due</strong>
         <span>${due ? `About ${Math.max(1, Math.round(due * 0.25))} min of review` : 'All caught up'}</span>
       </a>
-    </div>
+    </div></details>
 
-    <div class="grid-2">
-      <section class="panel">
-        <header class="panel-head"><h2>Today’s plan</h2><a href="#/tasks" class="quiet-link">All tasks</a></header>
-        ${agenda.length ? `<h3 class="sub">Schedule</h3><ul class="rows">${agenda.map((e) => eventRow(e)).join('')}</ul><h3 class="sub">Tasks</h3>` : ''}
-        <form class="inline-add" data-form="quick-task">
-          <input name="title" placeholder="Add a task for today" autocomplete="off" aria-label="New task">
-          <button class="btn">Add</button>
-        </form>
-        <ul class="rows">${tasksToday.map(taskRow).join('') || '<li class="rows-empty">Nothing on your list yet. What’s one thing you want to get done?</li>'}</ul>
-        <a class="routine-line" href="#/tasks">
-          <span>Daily routine</span><span class="num">${rDone} of ${s.routines.length}</span>
-          ${progressBar(s.routines.length ? Math.round((rDone / s.routines.length) * 100) : 0)}
-        </a>
-      </section>
-
-      <section class="panel">
-        <header class="panel-head"><h2>Coming up</h2><a href="#/calendar" class="quiet-link">Calendar</a></header>
-        <ul class="rows">${upcoming.map((e) => eventRow(e)).join('') || '<li class="rows-empty">Nothing due in the next two weeks.</li>'}</ul>
-      </section>
-    </div>
-
-    <section class="section">
-      <header class="section-head"><h2>Your classes</h2><a href="#/classes" class="quiet-link">All classes</a></header>
-      <div class="class-cards">${s.classes.map(classCard).join('')}</div>
-    </section>
-
-    <section class="panel">
-      <header class="panel-head"><h2>Review activity</h2><span class="muted small">Last 18 weeks</span></header>
-      ${reviewHeatmap()}
-    </section>`;
+    <details class="dashboard-library"><summary>Your classes <span>Notes, deadlines and review</span></summary><div class="class-cards">${s.classes.map(classCard).join('')}</div></details>
+    <details class="dashboard-library"><summary>Review activity <span>Last 18 weeks</span></summary>${reviewHeatmap()}</details>`;
   },
   mount(el) {
     el.addEventListener('click', (e) => {
@@ -349,7 +342,7 @@ Views.dashboard = {
       App.refresh();
       $('[data-form="quick-task"] input', App.viewEl)?.focus();
     });
-    if (typeof startNowTicker === 'function') this._stop = startNowTicker('dashboard');
+
   },
   unmount() {
     this._stop?.();
@@ -370,7 +363,7 @@ function classCard(c) {
   const lp = lectureProgress(c.id);
   const pct = classMastery(c.id);
   return `
-  <article class="class-card">
+  <article class="class-card" data-class="${esc(c.id)}">
     <a class="class-card-main" href="#/classes/${c.id}">
       <div class="class-card-top">
         ${mark(c.id, 'md')}
@@ -392,8 +385,8 @@ function classCard(c) {
 /* ------------------------------ Classes ------------------------------ */
 Views.classes = {
   title: 'Classes',
-  render([id]) {
-    if (id) return this.detail(id);
+  render([id],query={}) {
+    if (id) return this.detail(id,query);
     return `
     <header class="page-head">
       <div><h1>Classes</h1><p class="lede">Each class keeps its info, topics, notes, cards and deadlines together.</p></div>
@@ -402,7 +395,7 @@ Views.classes = {
     <section class="panel">${classRows(S().classes)}</section>`;
   },
 
-  detail(id) {
+  detail(id,query={}) {
     const c = getClass(id);
     if (!c) return emptyState('empty', 'Class not found', '', '<a class="btn" href="#/classes">Back to classes</a>');
     const t = todayStr();
@@ -418,20 +411,9 @@ Views.classes = {
     const DAYS = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
     const resources = c.resources || [];
 
-    return `
-    <a href="#/classes" class="back">${icon('left', 16)}Classes</a>
-    <header class="page-head">
-      <div class="class-title">${mark(id, 'lg')}<div><h1>${esc(c.name)}</h1><p class="lede">${esc([c.info.code, c.info.meeting, c.info.location].filter(Boolean).join(', ') || 'Fill in the class info below.')}</p></div></div>
-      <div class="head-actions">
-        <a class="btn" href="#/import?class=${id}">${icon('upload', 16)}Add material</a>
-        <a class="btn" href="#/tree/${id}">Skill tree</a>
-        <a class="btn primary" href="#/cards?class=${id}">Review ${dueCards(id).length} cards</a>
-      </div>
-    </header>
-
-    <div class="grid-2 wide-left">
-      <div class="stack">
-        ${lectures.length ? `
+    const tab=['materials','tasks','info'].includes(query.tab)?query.tab:'overview';
+    const classTasks=taskHubFilter(taskHubItems(),{class:c.id,status:'open'});
+    const materialsHTML=`${lectures.length ? `
         <section class="panel">
           <header class="panel-head"><h2>Lectures</h2><span class="muted small">${lectures.filter((n) => n.lecture.covered).length} of ${lectures.length} covered</span></header>
           ${progressBar(Math.round((lectures.filter((n) => n.lecture.covered).length / lectures.length) * 100))}
@@ -439,37 +421,15 @@ Views.classes = {
             <li class="row ${n.lecture.covered ? '' : 'upcoming'}">
               <input type="checkbox" data-covered="${n.id}" ${n.lecture.covered ? 'checked' : ''} aria-label="Mark ${esc(n.title)} as covered">
               <a class="row-main" href="#/notes/${n.id}"><span class="row-title">${esc(n.title.replace(/^(OS|Security|Nutrition) /, ''))}</span>${n.lecture.date ? `<span class="row-meta">${fmtDate(n.lecture.date, { weekday: 'short', month: 'short', day: 'numeric' })}</span>` : ''}</a>
-              ${n.source?.path ? `<a class="btn sm ghost" href="${esc(n.source.path)}" target="_blank" rel="noopener">Slides</a>` : ''}
+              ${n.source?.path ? `<a class="btn sm ghost" href="${esc(safeLink(n.source.path))}" target="_blank" rel="noopener">Slides</a>` : ''}
             </li>`).join('')}</ul>
-        </section>` : ''}
-
-        <section class="panel">
+        </section>` : ''}<section class="panel">
           <header class="panel-head"><h2>${lectures.length ? 'Other notes' : 'Notes and slides'}</h2><button class="btn sm" data-act="new-note">${icon('plus', 14)}New note</button></header>
           <ul class="rows">${others.slice(0, 12).map((n) => `
             <li class="row"><a class="row-main" href="#/notes/${n.id}"><span class="row-title">${esc(n.title)}</span><span class="row-meta">${n.tags.includes('reading') ? '<span class="tag">Reading</span>' : n.tags.includes('my notes') ? '<span class="tag">My notes</span>' : n.source ? `<span class="tag">${esc(n.source.kindLabel || 'Imported')}</span>` : ''}<span>${new Date(n.updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span></span></a></li>`).join('') || '<li class="rows-empty">No notes yet. Add slides or write a note.</li>'}</ul>
           ${others.length > 12 ? `<a class="quiet-link" href="#/notes?class=${id}">All ${notes.length} notes</a>` : ''}
-        </section>
-
-        <section class="panel">
-          <header class="panel-head"><h2>Topics</h2><button class="btn sm" data-act="add-topic">${icon('plus', 14)}Topic</button></header>
-          <div class="table-wrap"><table class="table">
-            <thead><tr><th>Topic</th><th>Learn first</th><th class="num">Cards</th><th>Mastery</th><th><span class="sr-only">Edit</span></th></tr></thead>
-            <tbody>
-            ${topics.map((tp) => `
-              <tr>
-                <td><strong>${esc(tp.name)}</strong><div class="muted small">${esc(tp.desc || '')}</div></td>
-                <td class="small">${tp.prereqs.map((p) => esc(getTopic(p)?.name || '')).filter(Boolean).join(', ') || '<span class="muted">None</span>'}</td>
-                <td class="num">${S().cards.filter((x) => x.topicId === tp.id).length}</td>
-                <td><select data-mastery="${tp.id}" class="compact" aria-label="Mastery of ${esc(tp.name)}">${MASTERY.map((m, i) => `<option value="${i}" ${i === tp.mastery ? 'selected' : ''}>${m.label}</option>`).join('')}</select></td>
-                <td><button class="btn sm ghost" data-act="edit-topic" data-id="${tp.id}">Edit</button></td>
-              </tr>`).join('')}
-            </tbody>
-          </table></div>
-        </section>
-      </div>
-
-      <div class="stack">
-        <section class="panel">
+        </section>`;
+    const progressHTML=`<section class="panel">
           <header class="panel-head"><h2>Progress</h2><span class="num strong">${pct}%</span></header>
           ${progressBar(pct)}
           <dl class="facts">
@@ -483,27 +443,18 @@ Views.classes = {
             <a class="btn sm" href="#/cards?tab=import&class=${id}">Make cards with AI</a>
             <a class="btn sm" href="#/graph?focus=c:${id}">Map</a>
           </div>
-        </section>
-
-        ${g ? `
-        <section class="panel">
-          <header class="panel-head"><h2>Grade</h2><a class="quiet-link" href="#/grades?class=${id}">Enter scores</a></header>
-          <div class="grade-big sm">${g.current == null ? '<span class="grade-empty">No scores yet</span>' : `<span class="grade-letter">${g.letter}</span><span class="num">${pctText(g.current)}</span>`}</div>
-          <p class="hint">${esc(c.info.grading || g.cats.map((k) => `${k.name} ${k.weight}%`).join(', '))}</p>
-        </section>` : ''}
-
-        <section class="panel">
+        </section>`;
+    const timesHTML=`<section class="panel">
           <header class="panel-head"><h2>Class times</h2><button class="btn sm" data-act="add-time">${icon('plus', 14)}Add</button></header>
           <ul class="rows compact">${weekly.map((e) => `
             <li class="row"><button class="row-main" data-act="edit-time" data-id="${e.id}"><span class="row-title">${esc(e.title)}</span><span class="row-meta">${DAYS[parseYmd(e.date).getDay()]}, ${fmtSpan(e)}${e.location ? ` · ${esc(e.location)}` : ''}</span></button></li>`).join('') || '<li class="rows-empty">Add lecture and office hour times so they show on your calendar and remind you before class.</li>'}</ul>
-        </section>
-
-        <section class="panel">
+        </section>`;
+    const resourcesHTML=`<section class="panel">
           <header class="panel-head"><h2>Links and books</h2></header>
           <ul class="rows compact resource-list">${resources.map((r) => `
             <li class="row">
               ${icon(r.kind === 'book' ? 'book' : r.kind === 'notes' ? 'notes' : 'globe', 16)}
-              <a class="row-main" href="${esc(r.url)}" target="_blank" rel="noopener"><span class="row-title">${esc(r.label)}</span><span class="row-meta">${esc(r.url.startsWith('library/') ? 'Saved file' : r.url.replace(/^https?:\/\//, '').split('/')[0])}</span></a>
+              <a class="row-main" href="${esc(safeLink(r.url))}" target="_blank" rel="noopener"><span class="row-title">${esc(r.label)}</span><span class="row-meta">${esc(r.url.startsWith('library/') ? 'Saved file' : r.url.replace(/^https?:\/\//, '').split('/')[0])}</span></a>
               <button class="icon-btn sm reveal" data-del-res="${r.id}" aria-label="Remove ${esc(r.label)}">${icon('close', 14)}</button>
             </li>`).join('') || '<li class="rows-empty">Add the course site, discussion board, textbooks and your notes folder.</li>'}</ul>
           <form class="res-add" id="res-add">
@@ -511,14 +462,13 @@ Views.classes = {
             <input name="url" placeholder="https://" required aria-label="Link address">
             <button class="btn sm">Add link</button>
           </form>
-        </section>
-
-        <section class="panel">
-          <header class="panel-head"><h2>Deadlines</h2><button class="btn sm" data-act="add-event">${icon('plus', 14)}Add</button></header>
-          <ul class="rows">${upcoming.map((e) => eventRow(e, { showClass: false })).join('') || '<li class="rows-empty">No upcoming deadlines.</li>'}</ul>
-        </section>
-
-        <section class="panel">
+        </section>`;
+    const tasksHTML=`<section class="panel">
+          <header class="panel-head"><h2>Class tasks & deadlines</h2><div class="btn-row"><button class="btn sm" data-act="add-class-task">${icon('plus',14)}Add task</button><button class="btn sm" data-act="add-event">Add deadline</button></div></header>
+          <ul class="rows">${(tab==='tasks'?classTasks:classTasks.slice(0,4)).map(taskHubRow).join('') || '<li class="rows-empty">No open tasks for this class.</li>'}</ul>
+          <a class="quiet-link" href="#/tasks?class=${c.id}&status=all">View all class tasks, including completed →</a>
+        </section>`;
+    const infoHTML=`<section class="panel">
           <header class="panel-head"><h2>Class info</h2><span class="muted small">Saves as you type</span></header>
           <div class="info-grid">
             ${INFO_FIELDS.map(([k, label]) => `
@@ -527,7 +477,7 @@ Views.classes = {
                 ${k === 'grading' || k === 'textbook'
                   ? `<textarea data-info="${k}" rows="2">${esc(c.info[k])}</textarea>`
                   : `<input data-info="${k}" value="${esc(c.info[k])}" ${k === 'syllabus' || k === 'lms' ? 'type="url" placeholder="https://"' : ''}>`}
-                ${(k === 'syllabus' || k === 'lms') && /^https?:/.test(c.info[k]) ? `<a class="quiet-link" href="${esc(c.info[k])}" target="_blank" rel="noopener">Open link ${icon('external', 13)}</a>` : ''}
+                ${(k === 'syllabus' || k === 'lms') && /^https?:/.test(c.info[k]) ? `<a class="quiet-link" href="${esc(safeLink(c.info[k]))}" target="_blank" rel="noopener">Open link ${icon('external', 13)}</a>` : ''}
               </label>`).join('')}
           </div>
           <h3 class="sub">Your own fields</h3>
@@ -544,15 +494,49 @@ Views.classes = {
             <span class="spacer"></span>
             <button class="btn sm ghost" data-act="edit-class">Rename or change mark</button>
           </div>
-        </section>
-
-        <button class="btn sm ghost danger" data-act="del-class">Delete class</button>
+        </section>`;
+    const topicsHTML=`<section class="panel">
+          <header class="panel-head"><h2>Topics</h2><button class="btn sm" data-act="add-topic">${icon('plus', 14)}Topic</button></header>
+          <div class="table-wrap"><table class="table">
+            <thead><tr><th>Topic</th><th>Learn first</th><th class="num">Cards</th><th>Mastery</th><th><span class="sr-only">Edit</span></th></tr></thead>
+            <tbody>
+            ${topics.map((tp) => `
+              <tr>
+                <td><strong>${esc(tp.name)}</strong><div class="muted small">${esc(tp.desc || '')}</div></td>
+                <td class="small">${tp.prereqs.map((p) => esc(getTopic(p)?.name || '')).filter(Boolean).join(', ') || '<span class="muted">None</span>'}</td>
+                <td class="num">${S().cards.filter((x) => x.topicId === tp.id).length}</td>
+                <td><select data-mastery="${tp.id}" class="compact" aria-label="Mastery of ${esc(tp.name)}">${MASTERY.map((m, i) => `<option value="${i}" ${i === tp.mastery ? 'selected' : ''}>${m.label}</option>`).join('')}</select></td>
+                <td><button class="btn sm ghost" data-act="edit-topic" data-id="${tp.id}">Edit</button></td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>
+        </section>`;
+    const gradeHTML=`${g ? `
+        <section class="panel">
+          <header class="panel-head"><h2>Grade</h2><a class="quiet-link" href="#/grades?class=${id}">Enter scores</a></header>
+          <div class="grade-big sm">${g.current == null ? '<span class="grade-empty">No scores yet</span>' : `<span class="grade-letter">${g.letter}</span><span class="num">${pctText(g.current)}</span>`}</div>
+          <p class="hint">${esc(c.info.grading || g.cats.map((k) => `${k.name} ${k.weight}%`).join(', '))}</p>
+        </section>` : ''}`;
+    return `
+    <header class="page-head">
+      <div class="class-title">${mark(id, 'lg')}<div><h1>${esc(c.name)}</h1><p class="lede">${esc([c.info.code, c.info.meeting, c.info.location].filter(Boolean).join(', ') || 'Fill in the class info below.')}</p></div></div>
+      <div class="head-actions">
+        <a class="btn" href="#/import?class=${id}">${icon('upload', 16)}Add material</a>
+        <a class="btn" href="#/tree/${id}">Skill tree</a>
+        <a class="btn primary" href="#/cards?class=${id}">Review ${dueCards(id).length} cards</a>
       </div>
-    </div>`;
+    </header>
+
+    <nav class="subtabs class-tabs" aria-label="Class pages">${[['overview','Overview'],['materials','Materials'],['tasks',`Tasks (${classTasks.length})`],['info','Class info']].map(([key,label])=>`<a class="subtab ${tab===key?'active':''}" href="#/classes/${id}?tab=${key}" ${tab===key?'aria-current="page"':''}>${label}</a>`).join('')}</nav>
+    ${tab==='overview'?`<div class="grid-2 wide-left"><div class="stack">${tasksHTML}${examCountdownPanel(id)}<section class="panel"><header class="panel-head"><h2>Continue studying</h2><a class="quiet-link" href="#/classes/${id}?tab=materials">All materials</a></header><ul class="rows">${notes.slice(0,3).map(n=>`<li class="row"><a class="row-main" href="#/notes/${n.id}"><span class="row-title">${esc(n.title)}</span></a></li>`).join('')||'<li class="rows-empty">Add your first class note or PDF.</li>'}</ul><a class="btn sm" href="#/practice?tab=prompt&class=${id}">Create practice test</a></section></div><div class="stack">${timesHTML}${gradeHTML}</div></div>`:''}
+    ${tab==='materials'?`<div class="grid-2 wide-left"><div class="stack">${materialsHTML}<details class="panel class-topic-details"><summary>Topics & mastery</summary>${topicsHTML}</details></div><div class="stack">${progressHTML}${resourcesHTML}</div></div>`:''}
+    ${tab==='tasks'?`<div class="class-task-page">${tasksHTML}${examCountdownPanel(id)}</div>`:''}
+    ${tab==='info'?`<div class="grid-2 wide-left"><div class="stack">${infoHTML}<button class="btn sm ghost danger" data-act="del-class">Delete class</button></div><div class="stack">${timesHTML}${resourcesHTML}</div></div>`:''}`;
   },
 
   mount(el, [id]) {
     const c = id && getClass(id);
+    el.addEventListener('click',e=>{const b=e.target.closest('[data-hub-open]');if(!b||!c)return;const item=taskHubItems().find(t=>t.id===b.dataset.hubOpen&&t.classId===c.id);if(item?.kind==='coursework')editEventModal(item.id);else if(item?.kind==='personal')editPersonalTask(item.id);});
     const saveSoon = debounce(() => Store.save(), 300);
 
     el.addEventListener('input', (e) => {
@@ -573,6 +557,8 @@ Views.classes = {
     });
 
     el.addEventListener('change', (e) => {
+      const check=e.target;
+      if(check.dataset.hubCheck){const item=taskHubItems().find(t=>t.id===check.dataset.hubCheck&&t.classId===c?.id);if(item){item.record.done=check.checked;Store.save();App.refresh();}return;}
       const tid = e.target.dataset.mastery;
       if (tid) {
         getTopic(tid).mastery = +e.target.value;
@@ -625,8 +611,9 @@ Views.classes = {
         Store.save();
         App.refresh();
       }
-      if (act === 'add-event') editEventModal(null, { classId: c.id });
-      if (act === 'new-note') location.hash = `#/notes/${createNote({ classId: c.id }).id}`;
+      if (act === 'add-event') editEventModal(null, { classId: c.id, kind:'deadline' });
+      if (act === 'add-class-task') editPersonalTask(null,{classId:c.id});
+      if (act === 'new-note') {NotesUI.mode='write';location.hash = `#/notes/${createNote({ classId: c.id }).id}`;}
       if (act === 'add-topic') editTopicModal(null, c.id);
       if (act === 'edit-topic') editTopicModal(b.dataset.id, c.id);
       if (act === 'del-class') {
@@ -639,6 +626,7 @@ Views.classes = {
         s.links = s.links.filter((l) => !topicIds.has(l.a) && !topicIds.has(l.b));
         s.cards = s.cards.filter((x) => x.classId !== c.id);
         s.events = s.events.filter((x) => x.classId !== c.id);
+        s.tasks.forEach(t=>{if(t.classId===c.id)t.classId='';});
         s.notes.forEach((n) => {
           if (n.classId === c.id) n.classId = '';
         });
@@ -819,7 +807,8 @@ Views.settings = {
         if (!data.classes || !data.notes) throw new Error('this is not a Study Hub backup');
         if (!confirm('Replace everything with this backup?')) return;
         Store.state = migrate(data);
-        Store.save();
+        Store.recoveryRequired = false;
+        if (!Store.save()) throw new Error('Browser storage is unavailable; the restored data is in memory. Export a backup before closing.');
         applyTheme();
         toast('Backup restored', 'ok');
         App.refresh();

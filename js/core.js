@@ -13,6 +13,13 @@ const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(3
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// Imported notes and backups can supply links; HTML escaping alone does not
+// prevent a javascript: URL from executing when clicked.
+function safeLink(url) {
+  const value = String(url ?? '').trim();
+  return /^(?:https?:\/\/|library\/)/i.test(value) ? value : '#';
+}
+
 /* ---------- dates (all stored as local YYYY-MM-DD strings) ---------- */
 function ymd(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -115,40 +122,68 @@ const STORE_KEY = 'studyhub.v1';
 
 const Store = {
   state: null,
+  _lastSaved: null,
+  recoveryRequired: false,
+  revision: 0,
 
   load() {
     let raw = null;
+    this.recoveryRequired = false;
+    this._lastSaved = null;
     try {
       raw = localStorage.getItem(STORE_KEY);
     } catch (_) {}
     if (raw) {
       try {
         this.state = migrate(JSON.parse(raw));
+        this._lastSaved = raw;
         return;
-      } catch (_) {}
+      } catch (_) {
+        // Keep the original bytes available for export or manual repair.
+        this.recoveryRequired = true;
+      }
     }
     this.state = buildSeed();
     applyPlannerExtras(this.state);
     if (typeof applyPacks === 'function') applyPacks(this.state);
-    this.save();
+    if (!this.recoveryRequired) this.save();
   },
 
   save() {
+    if (this.recoveryRequired) return false;
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(this.state));
+      const serialized = JSON.stringify(this.state);
+      if (this.saveError && typeof globalSearch === 'function') globalSearch._index = null;
+      if (serialized === this._lastSaved) { this.saveError = false; return true; }
+      if (typeof globalSearch === 'function') globalSearch._index = null;
+      localStorage.setItem(STORE_KEY, serialized);
+      this._lastSaved = serialized;
+      this.revision++;
+      this.saveError = false;
+      return true;
     } catch (_) {
-      toast('Could not save — browser storage is unavailable or full.', 'error');
+      if (!this.saveError) toast('Could not save — browser storage is unavailable or full. Export a backup from Settings.', 'error');
+      this.saveError = true;
+      return false;
     }
   },
 
   reset() {
-    this.state = buildSeed();
+    this.recoveryRequired = false;
+    this.state = migrate(buildSeed());
     this.save();
   },
 };
 
 function migrate(s) {
+  if (!s || typeof s !== 'object' || Array.isArray(s)) throw new Error('Invalid Study Hub data');
   const seed = buildSeed();
+  for (const [k, value] of Object.entries(seed)) {
+    if (s[k] !== undefined && Array.isArray(value) &&
+        (!Array.isArray(s[k]) || s[k].some((item) => !item || typeof item !== 'object' || Array.isArray(item)))) {
+      throw new Error(`Invalid backup field: ${k}`);
+    }
+  }
   for (const k of Object.keys(seed)) if (s[k] === undefined) s[k] = seed[k];
   s.settings = { ...seed.settings, ...s.settings };
   s.settings.notify = { ...seed.settings.notify, ...(s.settings.notify || {}) };
@@ -237,8 +272,12 @@ function topicOptions(classId, selected, { includeNone = true, noneLabel = '— 
    Markdown-lite renderer with [[wikilinks]]
    ========================================================================== */
 function inlineMd(s) {
+  const tokens = [];
+  const keep = (html) => `\u0000${tokens.push(html) - 1}\u0000`;
   return s
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/`([^`]+)`/g, (_, code) => keep(`<code>${code}</code>`))
+    .replace(/!\[([^\]]*)\]\(([^\s)]+)\)/g, (_, alt, url) =>
+      keep(safeLink(url) === '#' ? alt : `<img src="${url}" alt="${alt}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`))
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>')
     .replace(/==([^=]+)==/g, '<mark>$1</mark>')
@@ -247,7 +286,8 @@ function inlineMd(s) {
       const cls = resolved ? 'wikilink' : 'wikilink missing';
       return `<a href="#" class="${cls}" data-wiki="${target.trim()}">${label || target}</a>`;
     })
-    .replace(/\[([^\]]+)\]\(((?:https?:\/\/|library\/)[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    .replace(/\[([^\]]+)\]\(((?:https?:\/\/|library\/)[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\u0000(\d+)\u0000/g, (_, i) => tokens[+i] ?? '');
 }
 
 function renderMarkdown(src) {
@@ -410,8 +450,15 @@ const FileStore = {
     this._db = new Promise((resolve, reject) => {
       const req = indexedDB.open('studyhub-files', 1);
       req.onupgradeneeded = () => req.result.createObjectStore('files');
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      let failed = false;
+      req.onsuccess = () => {
+        const db = req.result;
+        if (failed) { db.close(); return; }
+        db.onversionchange = () => { db.close(); this._db = null; };
+        resolve(db);
+      };
+      req.onerror = () => { this._db = null; reject(req.error); };
+      req.onblocked = () => { failed = true; this._db = null; reject(new Error('File storage is blocked by another tab. Close other Study Hub tabs and retry.')); };
     });
     return this._db;
   },
@@ -422,6 +469,7 @@ const FileStore = {
       const r = fn(t.objectStore('files'));
       t.oncomplete = () => resolve(r?.result);
       t.onerror = () => reject(t.error);
+      t.onabort = () => reject(t.error || new Error('File storage transaction was aborted.'));
     });
   },
   put(id, blob) {
@@ -646,7 +694,7 @@ async function sendToChatGPT(prompt) {
   const copied = await copyText(prompt);
   let url = base;
   if (prefillUrl && prompt.length < 6000) url = `${base}${base.includes('?') ? '&' : '?'}q=${encodeURIComponent(prompt)}`;
-  window.open(url, '_blank', 'noopener');
+  window.open(safeLink(url), '_blank', 'noopener');
   if (url !== base) toast('Opened ChatGPT with your prompt prefilled (also copied).', 'ok');
   else toast(copied ? 'Prompt copied — paste it into ChatGPT with Ctrl+V.' : 'Opened ChatGPT. Copy the prompt manually.', copied ? 'ok' : 'warn');
 }

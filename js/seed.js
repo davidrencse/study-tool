@@ -294,6 +294,8 @@ Add your own links with double brackets — they show up in the Knowledge Graph.
     notifyLog: {},
     focusLog: [],
     timer: null,
+    practiceExams: [],
+    practiceDraft: { classId: '', examId: '', topicId: '', noteIds: [], count: 10, level: 'Course level', format: 'Mixed', extra: '', material: '', prompt: '', paste: '' },
   };
 }
 

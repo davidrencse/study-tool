@@ -154,7 +154,7 @@ Views.tasks = {
 
     return `
     <header class="page-head">
-      <div><h1>${d === todayStr() ? 'Today' : fmtDate(d, { weekday: 'long' })}</h1><p class="lede">${fmtDate(d, { weekday: 'long', month: 'long', day: 'numeric' })}. ${done.length} of ${plural(tasks.length, 'task')} done.</p></div>
+      <div><h1>Daily routine</h1><p class="lede">${fmtDate(d, { weekday: 'long', month: 'long', day: 'numeric' })}. ${done.length} of ${plural(tasks.length, 'task')} done.</p></div>
       <div class="head-actions">
         <button class="icon-btn" data-day-nav="-1" aria-label="Previous day">${icon('left')}</button>
         <input type="date" class="compact" value="${d}" data-date aria-label="Pick a date">

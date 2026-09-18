@@ -8,10 +8,13 @@ const MODES = { work: 'Focus', short: 'Short break', long: 'Long break' };
 
 const Focus = {
   start() {
+    if (this._timer) return;
     this.state();
-    setInterval(() => this.tick(), 1000);
+    this._timer = setInterval(() => this.tick(), 1000);
     this.tick();
   },
+
+  stop() { clearInterval(this._timer); this._timer = null; },
 
   cfg() {
     return S().settings.focus;
@@ -114,7 +117,9 @@ const Focus = {
     const total = this.length(t.mode);
     const active = t.running || left < total;
     const pill = $('#timer-pill');
-    if (pill) {
+    const paintKey = `${t.mode}:${t.running}:${left}`;
+    if (pill && pill.dataset.paintKey !== paintKey) {
+      pill.dataset.paintKey = paintKey;
       pill.hidden = !active;
       pill.classList.toggle('paused', !t.running);
       pill.innerHTML = `${icon(t.running ? 'timer' : 'pause', 15)}<span class="num">${mmss(left)}</span><span class="hide-sm">${MODES[t.mode]}</span>`;

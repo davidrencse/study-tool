@@ -36,7 +36,7 @@ function eventRow(e, { showClass = true } = {}) {
     ${lead}
     <button class="row-main" data-act="edit-event" data-id="${e.id}" data-date="${e.date}">
       <span class="row-title">${esc(e.title)}</span>
-      <span class="row-meta">${showClass && e.classId ? `${mark(e.classId)}${esc(getClass(e.classId)?.short || '')}` : ''}<span class="${type.major ? 'tag solid' : 'tag'}">${type.label}</span>${fmtSpan(e) ? `<span>${fmtSpan(e)}</span>` : ''}${e.location ? `<span>${esc(e.location)}</span>` : ''}${isRepeating(e) ? `<span class="ev-rep" title="${REPEATS[e.repeat]}">${icon('swap', 12)}</span>` : ''}</span>
+      <span class="row-meta">${showClass && e.classId ? `${mark(e.classId)}${esc(getClass(e.classId)?.short || '')}` : ''}<span class="${type.major ? 'tag solid' : 'tag'}">${type.label}</span>${e.sourceType === 'brightspace-email' ? ' <span class="tag">Email confirmed</span>' : ''}${fmtSpan(e) ? `<span>${fmtSpan(e)}</span>` : ''}${e.location ? `<span>${esc(e.location)}</span>` : ''}${isRepeating(e) ? `<span class="ev-rep" title="${REPEATS[e.repeat]}">${icon('swap', 12)}</span>` : ''}</span>
     </button>
     <span class="when ${overdue ? 'tag solid' : ''}">${when}</span>
   </li>`;
@@ -89,6 +89,10 @@ function editEventModal(id, defaults = {}, occDate = null) {
       </div>
       ${existing && rep ? `<p class="hint" data-for="event">Changes apply to every repeat${e.skip?.length ? ` (${plural(e.skip.length, 'skipped day')})` : ''}.</p>` : ''}
       <label>Notes<textarea name="notes" rows="3" data-ph-event="Agenda, what to bring" data-ph-deadline="Rubric, links, what to submit">${esc(e.notes)}</textarea></label>
+      ${e.assignmentUrl || e.sources?.length ? `<div class="source-bar" aria-label="Assignment sources">
+        ${e.assignmentUrl ? `<a class="btn sm" href="${esc(safeLink(e.assignmentUrl))}" target="_blank" rel="noopener">Open assignment</a>` : ''}
+        ${(e.sources || []).map(source => `<a class="btn sm ghost" href="${esc(safeLink(source.url))}" target="_blank" rel="noopener">${esc(source.label)}</a>`).join('')}
+      </div>` : ''}
       <label class="check" data-for="deadline"><input type="checkbox" name="done" ${e.done ? 'checked' : ''}> Done</label>
       <label class="check" data-for="event"><input type="checkbox" name="remind" ${e.remind !== false ? 'checked' : ''}> Remind me before it starts</label>
       <div class="form-actions">
@@ -469,7 +473,9 @@ Views.calendar = {
         CalView.show = e.target.value;
         App.refresh();
       }
-      if (e.target.matches('[data-ics-import]') && e.target.files[0]) importIcs(e.target.files[0]);
+      if (e.target.matches('[data-ics-import]') && e.target.files[0]) {
+        importIcs(e.target.files[0]).catch((err) => toast('Calendar import failed: ' + err.message, 'error'));
+      }
     });
 
     el.addEventListener('keydown', (e) => {
@@ -518,7 +524,7 @@ function exportIcs() {
     if (e.location) lines.push(`LOCATION:${icsEsc(e.location)}`);
     if (e.notes) lines.push(`DESCRIPTION:${icsEsc(e.notes)}`);
     if (isRepeating(e)) {
-      lines.push(`RRULE:${rule[e.repeat]}${e.until ? `;UNTIL=${icsDate(e.until)}T235959` : ''}`);
+      lines.push(`RRULE:${rule[e.repeat]}${e.until ? `;UNTIL=${icsDate(e.until)}${timed ? 'T235959' : ''}` : ''}`);
       (e.skip || []).forEach((d) => lines.push(timed ? `EXDATE:${icsDT(d, e.time)}` : `EXDATE;VALUE=DATE:${icsDate(d)}`));
     }
     lines.push('END:VEVENT');
@@ -538,8 +544,25 @@ function icsWhen(prop) {
   const m = val.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})\d{2}(Z)?)?/);
   if (!m) return null;
   if (!m[4] || /VALUE=DATE(?!-)/.test(head)) return { date: `${m[1]}-${m[2]}-${m[3]}`, time: '' };
-  if (m[6]) {
-    const d = new Date(Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]));
+  const zone = head.match(/(?:^|;)TZID="?([^;"]+)"?/i)?.[1];
+  if (m[6] || zone) {
+    const wall = Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]);
+    let instant = wall;
+    if (!m[6] && zone) {
+      // Intl supplies the zone's offset at the event date, including DST.
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      });
+      for (let i = 0; i < 3; i++) {
+        const parts = Object.fromEntries(formatter.formatToParts(new Date(instant)).map((p) => [p.type, p.value]));
+        const observed = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute);
+        const adjustment = wall - observed;
+        instant += adjustment;
+        if (!adjustment) break;
+      }
+    }
+    const d = new Date(instant);
     return { date: ymd(d), time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` };
   }
   return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}` };
@@ -551,6 +574,7 @@ async function importIcs(file) {
   const known = new Set(S().events.map((e) => e.importUid).filter(Boolean));
   let added = 0;
   let skipped = 0;
+  const incoming = [];
   for (const block of text.split('BEGIN:VEVENT').slice(1)) {
     const body = block.split('END:VEVENT')[0];
     const props = body.split(/\r?\n/).filter(Boolean);
@@ -581,7 +605,7 @@ async function importIcs(file) {
     else if (rr.FREQ === 'MONTHLY' && !rr.BYDAY) repeat = 'monthly';
     const title = unesc(val('SUMMARY')) || 'Untitled event';
     const allDay = !start.time;
-    const skip = props.filter((p) => /^EXDATE/i.test(p)).flatMap((p) => p.slice(p.indexOf(':') + 1).split(',').map((v) => icsWhen(`X:${v}`)?.date)).filter(Boolean);
+    const skip = props.filter((p) => /^EXDATE/i.test(p)).flatMap((p) => p.slice(p.indexOf(':') + 1).split(',').map((v) => icsWhen(`${p.slice(0, p.indexOf(':'))}:${v}`)?.date)).filter(Boolean);
     // "every Tue and Thu" becomes one weekly entry per day
     const DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
     const byDay = /^(bi)?weekly$/.test(repeat) && rr.BYDAY ? rr.BYDAY.split(',').map((d) => DAYS.indexOf(d.slice(-2))).filter((i) => i >= 0) : [];
@@ -595,16 +619,17 @@ async function importIcs(file) {
       else until = addDays(start.date, Math.ceil(n / per) * 7 * (repeat === 'biweekly' ? 2 : 1) - 1);
     }
     for (const date of starts) {
-      S().events.push({
+      incoming.push({
         id: uid(), importUid: uidv || undefined, title, classId: '', type: 'event',
         date, time: start.time, end: !allDay && end && end.date === start.date ? end.time : allDay ? '' : plusHour(start.time),
         allDay, location: unesc(val('LOCATION')), notes: unesc(val('DESCRIPTION')).slice(0, 2000),
-        repeat, until, skip: skip.filter((d) => parseYmd(d).getDay() === parseYmd(date).getDay()), done: false, topicIds: [],
+        repeat, until, skip: [...skip], done: false, topicIds: [],
       });
       added++;
     }
     if (uidv) known.add(uidv);
   }
+  S().events.push(...incoming);
   Store.save();
   toast(added ? `Imported ${plural(added, 'event')}${skipped ? `, ${skipped} already here` : ''}` : skipped ? 'Everything in that file is already here' : 'No events found in that file', added ? 'ok' : 'info');
   App.refresh();

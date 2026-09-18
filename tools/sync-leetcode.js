@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Reads LeetCode notes from the Obsidian vault and writes js/leetcode-data.js.
  *
- *   node tools/sync-leetcode.js ["C:/path/to/Vault"] ["4 - Main Notes/Leetcode"]
+ *   node tools/sync-leetcode.js "/path/to/Vault" ["4 - Main Notes/Leetcode"]
  *
  * The app merges a newer snapshot into what's saved in the browser on its
  * next load: code and notes update, practice history is kept.
@@ -10,11 +10,16 @@ const fs = require('fs');
 const path = require('path');
 const { parseLeetcodeNote } = require('../js/leetcode-parse.js');
 
-const vault = path.resolve(process.argv[2] || 'C:/Users/david/Documents/Vault');
+const vaultArg = process.argv[2] || process.env.OBSIDIAN_VAULT;
+if (!vaultArg) {
+  console.error('Usage: node tools/sync-leetcode.js "/path/to/Vault" ["4 - Main Notes/Leetcode"]\nOr set OBSIDIAN_VAULT to your vault path.');
+  process.exit(1);
+}
+const vault = path.resolve(vaultArg);
 const folder = process.argv[3] || '4 - Main Notes/Leetcode';
 const root = path.join(vault, folder);
 
-if (!fs.existsSync(root)) {
+if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
   console.error(`No folder at ${root}`);
   process.exit(1);
 }
@@ -24,7 +29,7 @@ const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const p = path.join(dir, e.name);
-    return e.isDirectory() ? walk(p) : e.name.endsWith('.md') ? [p] : [];
+    return e.isDirectory() ? walk(p) : e.isFile() && /\.md$/i.test(e.name) ? [p] : [];
   });
 }
 

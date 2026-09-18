@@ -43,7 +43,7 @@ Views.assist = {
     return `
     <header class="page-head">
       <div><h1>Ask ChatGPT</h1><p class="lede">Pick what you need. The app writes the prompt, copies it and opens ChatGPT.</p></div>
-      <div class="head-actions"><a class="btn" href="${esc(S().settings.chatUrl)}" target="_blank" rel="noopener">Open ChatGPT ${icon('external', 15)}</a></div>
+      <div class="head-actions"><a class="btn" href="${esc(safeLink(S().settings.chatUrl))}" target="_blank" rel="noopener">Open ChatGPT ${icon('external', 15)}</a></div>
     </header>
 
     <div class="grid-2 assist-grid">

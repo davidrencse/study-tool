@@ -33,15 +33,8 @@ Start with your first question.`,
   {
     id: 'exam',
     name: 'Practice exam',
-    desc: 'Mixed-format questions with an answer key at the end.',
-    build: (c) => `Write a practice exam for ${c.cls}${c.topic ? ` covering ${c.topic}` : ''}.
-
-Include:
-- 5 multiple-choice questions
-- 3 short-answer questions
-- 1 longer problem or essay question${c.cls.match(/operating|security/i) ? ' (include a worked/technical problem)' : ''}
-
-Match the difficulty of an upper-level undergraduate course. Put the full answer key with explanations at the very end, under a heading "ANSWER KEY".${c.extra ? `\n\nExtra instructions: ${c.extra}` : ''}${c.note ? `\n\nUse these notes as the source material:\n"""\n${c.note}\n"""` : ''}`,
+    desc: 'Generate a response you can paste into Practice exams → Create test.',
+    build: c => practicePrompt({classId:S().classes.find(x=>x.name===c.cls)?.id||'',examId:'',topicId:'',noteIds:[],count:10,level:'Course level',format:'Mixed',extra:[c.topic,c.extra].filter(Boolean).join(' — '),material:c.note||''}),
   },
   {
     id: 'summarize',
