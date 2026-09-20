@@ -49,7 +49,7 @@ The sidebar groups pages under **Plan**, **Classes**, **Materials**, and **Tools
 The bell in the top bar collects reminders: the day before something is due, the morning it's due, an hour before, when it becomes overdue, a week and 3 days before exams, before class starts, and once a day when flashcards are due. Turn on desktop notifications from the bell or in **Settings → Reminders**. Reminders only run while Study Hub is open (a background tab is fine).
 
 ## Your course content
-`js/packs-data.js` and `js/packs.js` / `js/packs-more.js` load your real Fall 2026 content once: syllabi details, class times, deadlines and exams, lecture notes built from the slides (Operating Systems lectures 1–21, Security weeks 1–2, Nutrition chapters 1–2), your own notes and reading notes from `Desktop\info`, and flashcards for what's been covered so far. The slides, syllabi and textbooks are copied into `library/`, and notes link straight to them (textbook readings open at the right page). Dates marked "confirm" in the notes weren't fully spelled out in the syllabus.
+`js/data/packs-data.js` and `js/data/packs.js` / `js/data/packs-more.js` load your real Fall 2026 content once: syllabi details, class times, deadlines and exams, lecture notes built from the slides (Operating Systems lectures 1–21, Security weeks 1–2, Nutrition chapters 1–2), your own notes and reading notes from `Desktop\info`, and flashcards for what's been covered so far. The slides, syllabi and textbooks are copied into `library/`, and notes link straight to them (textbook readings open at the right page). Dates marked "confirm" in the notes weren't fully spelled out in the syllabus.
 
 Classes are told apart by **shape**, not color: ■ OS, ▲ Security, ● Nutrition, ◆ Urban Studies (change a shape under Classes, then *Rename or change mark*).
 
@@ -99,31 +99,34 @@ Problems come from `Vault/4 - Main Notes/Leetcode/<Easy|Medium|Hard>/<number>. <
 
 ## Files
 ```
-index.html          entry point and existing study scripts
-src/main.jsx        React shell, dashboard, tasks, classes, and editor bridge
-src/components/ui/  shadcn/ui components
-src/index.css       neutral theme and editor compatibility styling
-vite.config.mjs     build and original PDF asset copying
-css/styles.css      all styling (white and black themes)
-js/core.js          storage, file store, markdown, graph model, spaced repetition, icons, class marks
-js/seed.js          starter template (classes, topics, starter cards)
-js/importer.js      PDF / PPTX / DOCX / Markdown / HTML → note text
-js/ai.js            ChatGPT prompt templates + offline summarizer
-js/graph.js         canvas graph + skill-tree layout
-js/views-*.js       one file per area of the app
-js/app.js           route parsing, shared operations, React bridge
-js/notify.js        reminders, bell panel, desktop notifications
-js/focus.js         focus timer and study log
-js/views-grades.js  grade tracker
-js/views-exams.js   exam countdowns and study plans
-js/code.js          syntax highlighting, code snippets, code prompts
-js/packs*.js        your course content (applied once)
-library/            slides, syllabi and textbooks the notes link to
-js/leetcode-parse.js    Obsidian LeetCode note → problem (shared with the sync script)
-js/leetcode-data.js     generated snapshot of the vault's LeetCode notes
-tools/sync-leetcode.js  node script that regenerates leetcode-data.js
-css/leetcode.css        LeetCode section styles
+index.html            entry point: the classic study scripts, then the React shell
+src/main.jsx          React shell, dashboard, tasks, classes, and editor bridge
+src/components/ui/    shadcn/ui components
+src/index.css         neutral theme and editor compatibility styling
+vite.config.mjs       build and original PDF asset copying
+tools/                sync-leetcode.js (regenerates js/data/leetcode-data.js), check-build.js (size budgets)
+tests/audit.test.js   regression tests: npm test
+library/              slides, syllabi and textbooks the notes link to
+
+js/app.js             route parsing, shared operations, React bridge
+js/core/              core.js (storage, files, markdown, graph model, spaced repetition, icons, marks)
+                      seed.js (starter template: classes, topics, starter cards)
+js/data/              packs*.js and brightspace-updates.js (your course content, applied once)
+                      definitions.js (glossary links), leetcode-data.js (generated vault snapshot)
+js/lib/               ai.js (ChatGPT prompts + offline summarizer), importer.js (PDF/PPTX/DOCX/MD → notes)
+                      graph.js (canvas graph + skill-tree layout), code.js (highlighting, snippets)
+                      notify.js (reminders), focus.js (timer + study log)
+                      leetcode-parse.js, practice-exams.js (parsers shared with tools and tests)
+js/views/             one file per area: main, notes, cards, ai, graph, plan, calendar, schedule,
+                      tasks, grades, exams, practice, leetcode
+
+css/styles.css        the shared black-and-white system
+css/                  calendar.css, planner.css, leetcode.css, workspace.css (per-area styling)
 ```
+
+The `js/` files are classic scripts sharing one global scope, so the order of the `<script>` tags in
+`index.html` matters: `core/` first, then `data/`, `lib/`, `views/`, and `app.js` last.
+
 ## Checks
 
 Run the dependency-free regression suite with `node --test tests/audit.test.js`. It covers reset and storage migration, invalid backups, malformed routes, unsafe links, calendar dates and exceptions, LeetCode review preservation, and vault sync with Linux paths.

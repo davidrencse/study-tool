@@ -2,7 +2,7 @@
    views-leetcode.js — solved LeetCode problems from the Obsidian vault,
    with self-paced re-solve practice.
    Data: S().leetcode = { problems: [...], snapshot, vault, folder }
-   Sources: js/leetcode-data.js (tools/sync-leetcode.js) or "Sync from vault".
+   Sources: js/data/leetcode-data.js (tools/sync-leetcode.js) or "Sync from vault".
    ========================================================================== */
 
 ICON_PATHS.leetcode = '<path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 4.5l-3 15"/>';

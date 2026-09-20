@@ -163,14 +163,16 @@ test('LeetCode snapshot updates preserve review history and edited patterns', ()
 test('sync works with Linux paths, spaces, uppercase extensions and environment configuration', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'study-audit-'));
   try {
-    fs.mkdirSync(path.join(dir,'tools'));fs.mkdirSync(path.join(dir,'js'));
-    for (const file of ['tools/sync-leetcode.js','js/leetcode-parse.js']) fs.copyFileSync(path.join(root,file),path.join(dir,file));
+    for (const file of ['tools/sync-leetcode.js','js/lib/leetcode-parse.js']) {
+      fs.mkdirSync(path.join(dir,path.dirname(file)),{recursive:true});
+      fs.copyFileSync(path.join(root,file),path.join(dir,file));
+    }
     const vault = path.join(dir,'My Vault');const notes = path.join(vault,'4 - Main Notes','Leetcode','Easy');fs.mkdirSync(notes,{recursive:true});
     fs.writeFileSync(path.join(notes,'1. Two Sum.MD'),'```python\nreturn []\n```');
     const script = path.join(dir,'tools/sync-leetcode.js');
     const result = spawnSync(process.execPath,[script,vault],{encoding:'utf8'});
     assert.equal(result.status,0,result.stderr); assert.match(result.stdout,/Wrote 1 problems/);
-    assert.match(fs.readFileSync(path.join(dir,'js/leetcode-data.js'),'utf8'),/4 - Main Notes\/Leetcode\/Easy\/1. Two Sum.MD/);
+    assert.match(fs.readFileSync(path.join(dir,'js/data/leetcode-data.js'),'utf8'),/4 - Main Notes\/Leetcode\/Easy\/1. Two Sum.MD/);
     assert.equal(spawnSync(process.execPath,[script],{env:{...process.env,OBSIDIAN_VAULT:vault}}).status,0);
     const missing=spawnSync(process.execPath,[script],{env:{...process.env,OBSIDIAN_VAULT:''},encoding:'utf8'});
     assert.equal(missing.status,1);assert.match(missing.stderr,/Usage:/);
@@ -179,7 +181,7 @@ test('sync works with Linux paths, spaces, uppercase extensions and environment 
 
 const examFixture=fs.readFileSync(path.join(__dirname,'fixtures/practice-exam.txt'),'utf8');
 test('practice parser accepts mixed questions and rejects incomplete or ambiguous imports',()=>{
- const {parsePracticeExam}=require('../js/practice-exams.js');
+ const {parsePracticeExam}=require('../js/lib/practice-exams.js');
  const parsed=parsePracticeExam('```text\r\n'+examFixture.replace(/\n/g,'\r\n')+'```');
  assert.equal(parsed.errors.length,0);assert.equal(parsed.questions.length,3);
  for(const bad of [examFixture.replace('ANSWER: A','ANSWER: Z'),examFixture.replace('D) A filename',''),examFixture.replace('END_QUESTION',''),examFixture.replace('TYPE: SHORT','TYPE: ESSAY'),examFixture.replace('EXPLANATION: A mutex provides mutual exclusion.','')]) assert.ok(parsePracticeExam(bad).errors.length);
