@@ -36,7 +36,7 @@ Views.calendar = {
 
     return `
     <header class="page-head">
-      <div><h1>${first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</h1><p class="lede">Assignments, exams and readings. Bold items are exams, projects and papers.</p></div>
+      <div><h1>${dateFormatter({ month: 'long', year: 'numeric' }).format(first)}</h1><p class="lede">Assignments, exams and readings. Bold items are exams, projects and papers.</p></div>
       <div class="head-actions">
         <button class="icon-btn" data-nav="-1" aria-label="Previous month">${icon('left')}</button>
         <button class="btn sm" data-nav="0">Today</button>

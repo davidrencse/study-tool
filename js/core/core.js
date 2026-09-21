@@ -37,8 +37,37 @@ function addDays(s, n) {
 function daysBetween(a, b) {
   return Math.round((parseYmd(b) - parseYmd(a)) / 86400000);
 }
+/* Building an Intl formatter costs ~60x more than using one, and the calendar
+   formats hundreds of dates per render — so keep one formatter per option set. */
+const DATE_PARTS = ['weekday', 'year', 'month', 'day'];
+const _dtf = new Map();
+function dateFormatter(opts) {
+  const key = DATE_PARTS.map((k) => opts[k] ?? '').join('|') + '|' +
+    ['hour', 'minute', 'second', 'dayPeriod', 'timeZone'].map((k) => opts[k] ?? '').join('|');
+  let f = _dtf.get(key);
+  if (!f) {
+    // toLocaleDateString fills in y/m/d when no date part is asked for; match it.
+    const resolved = DATE_PARTS.some((k) => opts[k] !== undefined)
+      ? opts
+      : { ...opts, year: 'numeric', month: 'numeric', day: 'numeric' };
+    _dtf.set(key, (f = new Intl.DateTimeFormat(undefined, resolved)));
+  }
+  return f;
+}
+const TIME_OPTS = { hour: 'numeric', minute: '2-digit' };
+let _tf = null;
+const timeFormatter = () => (_tf ||= new Intl.DateTimeFormat(undefined, TIME_OPTS));
+
 function fmtDate(s, opts = { month: 'short', day: 'numeric' }) {
-  return parseYmd(s).toLocaleDateString(undefined, opts);
+  return dateFormatter(opts).format(parseYmd(s));
+}
+/** Same formatting as fmtDate, for a millisecond timestamp. */
+function fmtStamp(ts, opts = { month: 'short', day: 'numeric' }) {
+  return dateFormatter(opts).format(new Date(ts));
+}
+/** Clock time from a millisecond timestamp. */
+function fmtClock(ts) {
+  return timeFormatter().format(new Date(ts));
 }
 function relDay(s) {
   const n = daysBetween(todayStr(), s);
@@ -53,8 +82,8 @@ function fmtTime(t) {
   if (!t) return '';
   const [h, m] = t.split(':').map(Number);
   const d = new Date();
-  d.setHours(h, m);
-  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  d.setHours(h, m, 0, 0);
+  return timeFormatter().format(d);
 }
 
 /* ---------- calendar entries: deadlines (due, can be done/overdue) vs scheduled events ---------- */
@@ -77,16 +106,67 @@ function occursOn(e, d) {
   return false;
 }
 
-/** Every entry occurrence between two days (inclusive), each copied with its own `date` and `seriesStart`. */
+/** Every entry occurrence between two days (inclusive), each copied with its own `date` and `seriesStart`.
+ *  Jumps straight from one occurrence to the next instead of testing every day in
+ *  the window: a weekly entry over a year is 52 steps, not 365. */
 function occurrences(from, to, list = S().events) {
   const out = [];
   for (const e of list) {
-    if (!e.repeat || e.repeat === 'none') {
+    const rep = e.repeat || 'none';
+    if (rep === 'none') {
       if (e.date >= from && e.date <= to) out.push(e);
       continue;
     }
-    for (let d = e.date > from ? e.date : from; d <= to && (!e.until || d <= e.until); d = addDays(d, 1)) {
-      if (occursOn(e, d)) out.push(d === e.date ? e : { ...e, date: d, seriesStart: e.date });
+    // `until` may end the series before the window does.
+    const last = e.until && e.until < to ? e.until : to;
+    if (e.date > last) continue;
+    const skip = e.skip?.length ? new Set(e.skip) : null;
+    const emit = (d) => {
+      if (skip?.has(d)) return;
+      out.push(d === e.date ? e : { ...e, date: d, seriesStart: e.date });
+    };
+    const endD = parseYmd(last);
+
+    if (rep === 'daily' || rep === 'weekdays') {
+      // The start day always counts, even a weekday series starting on a weekend.
+      if (rep === 'weekdays' && e.date >= from) {
+        const day = parseYmd(e.date).getDay();
+        if (day === 0 || day === 6) emit(e.date);
+      }
+      const cur = parseYmd(e.date > from ? e.date : from);
+      for (; cur <= endD; cur.setDate(cur.getDate() + 1)) {
+        if (rep === 'weekdays') {
+          const day = cur.getDay();
+          if (day === 0 || day === 6) continue;
+        }
+        emit(ymd(cur));
+      }
+      continue;
+    }
+
+    if (rep === 'weekly' || rep === 'biweekly') {
+      const step = rep === 'weekly' ? 7 : 14;
+      const cur = parseYmd(e.date);
+      // Land on the first occurrence at or after `from` without walking there.
+      if (e.date < from) cur.setDate(cur.getDate() + Math.ceil(daysBetween(e.date, from) / step) * step);
+      for (; cur <= endD; cur.setDate(cur.getDate() + step)) emit(ymd(cur));
+      continue;
+    }
+
+    if (rep === 'monthly') {
+      const start = parseYmd(e.date);
+      const dom = start.getDate();
+      const fromD = parseYmd(from > e.date ? from : e.date);
+      let y = start.getFullYear();
+      let mo = start.getMonth();
+      if (start < fromD) mo += (fromD.getFullYear() - y) * 12 + (fromD.getMonth() - mo);
+      for (;;) {
+        const cur = new Date(y, mo, dom);
+        if (cur > endD) break;
+        // new Date(y, 1, 31) rolls into March: that month simply has no 31st.
+        if (cur.getDate() === dom && cur >= fromD) emit(ymd(cur));
+        mo++;
+      }
     }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || !!a.allDay - !!b.allDay || (a.time || '').localeCompare(b.time || ''));
@@ -550,12 +630,19 @@ function buildGraph({ includeNotes = true, classFilter = null } = {}) {
   return { nodes, edges };
 }
 
+/* buildGraph returns a fresh object every call, so keying the adjacency list on
+   that object can never go stale — and the class-distance matrix stops rebuilding
+   it once per cell. */
+const _adjacency = new WeakMap();
 function adjacency(graph) {
-  const adj = new Map(graph.nodes.map((n) => [n.id, []]));
+  let adj = _adjacency.get(graph);
+  if (adj) return adj;
+  adj = new Map(graph.nodes.map((n) => [n.id, []]));
   for (const e of graph.edges) {
     adj.get(e.source)?.push({ to: e.target, edge: e });
     adj.get(e.target)?.push({ to: e.source, edge: e });
   }
+  _adjacency.set(graph, adj);
   return adj;
 }
 
@@ -827,9 +914,3 @@ function mark(classId, extra = '') {
   return `<i class="mark mk-${classMarkName(classId)} ${extra}" aria-hidden="true"></i>`;
 }
 
-/** Tabs shown above views that share one navigation entry. */
-function subTabs(items, active) {
-  return `<nav class="subtabs" aria-label="Section">${items
-    .map(([href, label, id]) => `<a href="${href}" class="subtab ${id === active ? 'active' : ''}" ${id === active ? 'aria-current="page"' : ''}>${label}</a>`)
-    .join('')}</nav>`;
-}

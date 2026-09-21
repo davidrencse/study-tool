@@ -61,11 +61,17 @@ test('Tasks includes coursework, everyday tasks and actionable list items', () =
 });
 test('reorganized navigation assigns each page to exactly one section', () => {
   const run=app();
+  const groupOf=(v)=>`NAV.find(n=>n.views.includes('${v}')).group`;
+  const entryOf=(v)=>`NAV.find(n=>n.views.includes('${v}')).id`;
   assert.equal(run("Object.keys(Views).filter(v=>v!=='settings').every(v=>NAV.filter(n=>n.views.includes(v)).length===1)"),true);
-  assert.equal(run("navFor('tasks').group"),'Plan');
-  assert.equal(run("navFor('todo').id"),'tasks');
-  assert.equal(run("navFor('notes').group"),'Materials');
-  assert.equal(run("navFor('graph').group"),'Tools');
+  assert.equal(run(groupOf('tasks')),'Plan');
+  assert.equal(run(entryOf('todo')),'tasks');
+  assert.equal(run(groupOf('notes')),'Materials');
+  assert.equal(run(groupOf('graph')),'Tools');
+  assert.equal(run(groupOf('classes')),'Classes');
+  assert.equal(run(groupOf('assist')),'Tools');
+  // every entry React groups in the sidebar must name a real view
+  assert.equal(run("NAV.every(n=>n.views.length&&n.views.every(v=>!!Views[v]))"),true);
 });
 test('malformed URL encoding does not crash navigation', () => {
   const run = app(); run("location.hash='#/notes/%?class=os'");
@@ -240,13 +246,6 @@ test('LeetCode is self-paced and removes legacy scheduling without losing histor
  assert.doesNotMatch(run('Views.leetcode.render([])+Views.leetcode.detail(lcProblem.num)'),/Due now|Next on|Next to re-solve|lc-due-now/);
  run('LCUI.session.pos=LCUI.session.queue.length;LCUI.session.stats=[0,0,1,0]');assert.match(run('Views.lcpractice.render([],{})'),/re-solved/);
 });
-test('breadcrumbs reflect the class hierarchy and navigation groups',()=>{
- const run=app();
- assert.match(run("workspaceBreadcrumb('classes',['os'],{tab:'tasks'})"),/<a href="#\/classes">Classes<\/a>.*Operating Systems.*Tasks &amp; deadlines/);
- assert.match(run("workspaceBreadcrumb('classes',['os'],{tab:'materials'})"),/aria-current="page">Materials/);
- assert.equal(run("navFor('classes').group"),'Classes');assert.equal(run("navFor('assist').group"),'Tools');
-});
-
 test('unreadable saved data is preserved until an explicit reset',()=>{
  const run=app();
  run("localStorage.setItem(STORE_KEY,'{broken original');Store.load();S().notes[0].title='Unsaved change';Store.save()");
@@ -313,4 +312,115 @@ test('search caps results and remains accurate across state replacement',()=>{
  assert.equal(run("globalSearch('c').length"),0);
  run('Store.reset()');
  assert.equal(run("globalSearch('capfixture').length"),0);
+});
+
+test('repeating entries expand identically when stepped by period', () => {
+ const run = app();
+ // Reference implementation: test every day in the window, the way the expansion
+ // worked before it learned to jump from one occurrence to the next.
+ run(`function occurrencesByDay(from,to,list){
+   const out=[];
+   for(const e of list){
+     if(!e.repeat||e.repeat==='none'){ if(e.date>=from&&e.date<=to)out.push(e); continue; }
+     for(let d=e.date>from?e.date:from; d<=to&&(!e.until||d<=e.until); d=addDays(d,1))
+       if(occursOn(e,d))out.push(d===e.date?e:{...e,date:d,seriesStart:e.date});
+   }
+   return out.sort((a,b)=>a.date.localeCompare(b.date)||!!a.allDay-!!b.allDay||(a.time||'').localeCompare(b.time||''));
+ }`);
+ const ev = (o) => JSON.stringify({ id: 'r', title: 'r', type: 'other', classId: '', skip: [], ...o });
+ const cases = [
+  // every repeat rule, including the start day and an explicit end
+  ev({ date: '2026-09-20', repeat: 'daily' }),
+  ev({ date: '2026-09-20', repeat: 'weekly' }),
+  ev({ date: '2026-09-20', repeat: 'biweekly' }),
+  ev({ date: '2026-09-20', repeat: 'monthly' }),
+  ev({ date: '2026-09-20', repeat: 'weekdays' }),
+  // a weekday series that starts on a Saturday still occurs on its start day
+  ev({ date: '2026-09-19', repeat: 'weekdays' }),
+  // months that have no 31st are skipped, not shifted into the next month
+  ev({ date: '2026-01-31', repeat: 'monthly' }),
+  ev({ date: '2024-02-29', repeat: 'monthly' }),
+  // `until` ends the series, `skip` drops single occurrences (including the start)
+  ev({ date: '2026-09-01', repeat: 'weekly', until: '2026-10-15' }),
+  ev({ date: '2026-09-01', repeat: 'daily', skip: ['2026-09-01', '2026-09-05'] }),
+  ev({ date: '2026-09-01', repeat: 'weekly', skip: ['2026-09-15'], until: '2026-11-01' }),
+  // a series whose `until` precedes its start never occurs
+  ev({ date: '2026-09-20', repeat: 'weekly', until: '2026-09-01' }),
+ ];
+ const windows = [
+  ['2026-09-01', '2026-09-30'],
+  ['2026-03-01', '2026-03-31'],   // spring DST transition
+  ['2026-10-25', '2026-11-10'],   // autumn DST transition
+  ['2024-02-01', '2024-03-05'],   // leap day
+  ['2026-01-01', '2026-12-31'],
+  ['2026-09-20', '2026-09-20'],   // single day
+  ['2026-12-31', '2026-01-01'],   // inverted window yields nothing
+  ['2025-06-01', '2027-06-01'],
+ ];
+ let compared = 0;
+ for (const e of cases) for (const [from, to] of windows) {
+  const args = `${JSON.stringify(from)},${JSON.stringify(to)},[${e}]`;
+  const fast = run(`JSON.stringify(occurrences(${args}).map(x=>[x.date,x.seriesStart||null]))`);
+  const byDay = run(`JSON.stringify(occurrencesByDay(${args}).map(x=>[x.date,x.seriesStart||null]))`);
+  assert.equal(fast, byDay, `${e} over ${from}..${to}`);
+  compared++;
+ }
+ assert.equal(compared, cases.length * windows.length);
+ // the seeded planner expands the same way through both paths
+ assert.equal(
+  run("JSON.stringify(occurrences('2026-09-01','2027-09-01').map(x=>x.id+'@'+x.date))"),
+  run("JSON.stringify(occurrencesByDay('2026-09-01','2027-09-01',S().events).map(x=>x.id+'@'+x.date))"));
+});
+
+test('cached date formatters match toLocaleDateString and toLocaleTimeString', () => {
+ const run = app();
+ const optionSets = [
+  { day: 'numeric' }, { month: 'short', day: 'numeric' }, { month: 'short', year: 'numeric' },
+  { month: 'long', year: 'numeric' }, { month: 'long', day: 'numeric', year: 'numeric' },
+  { month: 'short', day: 'numeric', year: 'numeric' }, { weekday: 'long' }, { weekday: 'short' },
+  { weekday: 'narrow' }, { weekday: 'long', month: 'long', day: 'numeric' },
+  { weekday: 'long', month: 'short', day: 'numeric' }, { weekday: 'short', month: 'short' },
+  { weekday: 'short', month: 'short', day: 'numeric' },
+ ];
+ const dates = ['2024-02-29', '2025-01-01', '2026-03-08', '2026-09-20', '2026-11-01', '2027-12-31'];
+ for (const d of dates) for (const o of optionSets) {
+  assert.equal(
+   run(`fmtDate(${JSON.stringify(d)},${JSON.stringify(o)})`),
+   run(`parseYmd(${JSON.stringify(d)}).toLocaleDateString(undefined,${JSON.stringify(o)})`),
+   `fmtDate ${d} ${JSON.stringify(o)}`);
+ }
+ for (const t of ['00:00', '09:05', '12:00', '13:30', '23:59']) {
+  assert.equal(run(`fmtTime(${JSON.stringify(t)})`),
+   run(`(()=>{const d=new Date();d.setHours(${+t.slice(0,2)},${+t.slice(3,5)},0,0);return d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})})()`),
+   `fmtTime ${t}`);
+ }
+ assert.equal(run("fmtTime('')"), '');
+ // one formatter per option set, reused rather than rebuilt per call
+ run("_dtf.clear();for(let i=0;i<50;i++){fmtDate('2026-09-20');fmtDate('2026-09-21',{weekday:'long'})}");
+ assert.equal(run('_dtf.size'), 2);
+ // timestamp helpers format through the same cache
+ assert.equal(run("fmtStamp(new Date(2026,8,20).getTime())"), run("fmtDate('2026-09-20')"));
+ assert.equal(run('_dtf.size'), 2);
+});
+
+test('adjacency is derived once per graph and reused by every path query', () => {
+ const run = app();
+ run('var g=buildGraph({includeNotes:false})');
+ assert.equal(run('adjacency(g)===adjacency(g)'), true);
+ // a separately built graph gets its own adjacency
+ assert.equal(run('adjacency(g)===adjacency(buildGraph({includeNotes:false}))'), false);
+ // reuse must not change the answers
+ assert.equal(run('JSON.stringify(shortestPath(g,"c:os","c:sec")?.map(p=>p.id))'),
+              run('JSON.stringify(shortestPath(buildGraph({includeNotes:false}),"c:os","c:sec")?.map(p=>p.id))'));
+ assert.equal(run('shortestPath(g,"c:os","c:os").length'), 1);
+ assert.equal(run('shortestPath(g,"c:os","t:does-not-exist")'), null);
+});
+
+test('connections hands its graph to mount instead of rebuilding it', () => {
+ const run = app();
+ run('var builds=0;var realBuildGraph=buildGraph;buildGraph=function(...a){builds++;return realBuildGraph(...a)}');
+ run("ConnUI.notes=false;ConnUI.from='c:os';ConnUI.to='c:sec';Views.connections.render([],{})");
+ assert.equal(run('builds'), 1, 'render should build the graph once');
+ assert.equal(run('Views.connections._graph!==null'), true);
+ run('buildGraph=realBuildGraph');
 });

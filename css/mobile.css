@@ -1,0 +1,246 @@
+/* ==========================================================================
+   Mobile & touch
+   Everything that only shows up on a real phone: notches, the iOS focus zoom,
+   finger-sized targets, hover-only controls, and content that would otherwise
+   push the page sideways.
+
+   Imported unlayered from src/index.css so it can correct Tailwind utilities
+   and the legacy views alike. Selectors carry a `:root` prefix on purpose:
+   index.css sets its own unlayered `.legacy-workspace …` rules after this
+   file, and the extra weight keeps these phone corrections from losing to
+   them. Keep every rule scoped to a mobile-only concern.
+   ========================================================================== */
+
+:root {
+  --app-header-h: 64px;
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+html body { overflow-x: clip; }
+
+/* --------------------------------------------------------------------------
+   Nothing widens the page
+   A grid or flex child is `min-width: auto` by default, so one long title or a
+   nowrap code block stretches its whole column and the page scrolls sideways.
+   -------------------------------------------------------------------------- */
+:root #view .grid > *,
+:root #view [class*="grid-cols"] > *,
+:root .notes-layout > *, :root .cal-layout > *, :root .tree-layout > *,
+:root .graph-body > *, :root .grid-2 > *, :root .code-panes > *,
+:root .md-panes > *, :root .stack > * { min-width: 0; }
+
+:root .code-panes .code-edit, :root .code-panes textarea,
+:root .code-view, :root .codeblock { min-width: 0; max-width: 100%; }
+:root .td-add-where { min-width: 0; }
+:root .td-add-where select { min-width: 0; width: 100%; }
+
+@media (max-width: 767px) {
+  /* legacy views sit inside <main>, which already has the page gutter */
+  :root .legacy-workspace.view { padding-left: 0; padding-right: 0; padding-top: 0; max-width: none; }
+
+  /* notch and home indicator */
+  :root [data-slot="sidebar-inset"] > header {
+    height: calc(var(--app-header-h) + var(--safe-t));
+    padding-top: var(--safe-t);
+    padding-left: max(12px, var(--safe-l));
+    padding-right: max(12px, var(--safe-r));
+  }
+  :root #view {
+    padding-left: max(16px, var(--safe-l));
+    padding-right: max(16px, var(--safe-r));
+    padding-bottom: calc(48px + var(--safe-b));
+  }
+  /* the sidebar is a sheet at this width */
+  :root [data-slot="sidebar"][data-mobile="true"], :root [data-slot="sheet-content"] {
+    padding-bottom: var(--safe-b);
+    padding-left: var(--safe-l);
+    overscroll-behavior: contain;
+  }
+  :root #toasts { bottom: calc(16px + var(--safe-b)); }
+
+  /* iOS zooms into any field whose text is under 16px when it takes focus */
+  :root .legacy-workspace input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  :root .legacy-workspace select,
+  :root .legacy-workspace textarea,
+  :root .legacy-workspace .compact,
+  :root .legacy-workspace .md-input,
+  :root .legacy-workspace .recall-input,
+  :root .legacy-workspace .prompt-box { font-size: 16px !important; }
+
+  /* tab strips scroll instead of wrapping or clipping */
+  :root [data-slot="tabs-list"] {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    justify-content: flex-start;
+  }
+  :root [data-slot="tabs-list"]::-webkit-scrollbar { display: none; }
+  :root [data-slot="tabs-trigger"] { flex-shrink: 0; }
+  :root .subtabs { margin-left: -16px; margin-right: -16px; padding: 0 16px; }
+  :root .md-toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  :root .md-toolbar::-webkit-scrollbar { display: none; }
+  :root .md-toolbar > * { flex-shrink: 0; }
+
+  /* heights that assumed a desktop window */
+  :root .notes-side { max-height: min(340px, 45dvh); }
+  :root .note-editor, :root .md-panes, :root .graph-page { min-height: 0; }
+  :root .md-input { min-height: 300px; }
+  :root .graph-body { grid-template-rows: min(62dvh, 520px) auto; }
+  :root .tree-scroll { max-height: 65dvh; min-height: 320px; }
+  :root .code-panes { grid-template-columns: minmax(0, 1fr); }
+
+  /* dialogs: full width, never taller than the screen */
+  :root [data-slot="dialog-content"] {
+    max-width: calc(100% - 1.5rem);
+    max-height: calc(100dvh - 1.5rem - var(--safe-t) - var(--safe-b));
+  }
+  /* only the dialogs that host a legacy form; the command palette stays flush */
+  :root [data-slot="dialog-content"]:has(> .legacy-workspace) {
+    padding: 1.25rem;
+    overflow: hidden;
+  }
+  :root [data-slot="dialog-content"] > .legacy-workspace {
+    max-height: calc(100dvh - 11rem - var(--safe-t) - var(--safe-b));
+    overscroll-behavior: contain;
+    margin: 0 -0.25rem;
+    padding: 0 0.25rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Touch targets
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  /* shell */
+  :root [data-slot="sidebar-trigger"] { width: 40px; height: 40px; }
+  :root [data-slot="sidebar-inset"] > header [data-slot="button"] { min-width: 40px; min-height: 40px; }
+  :root [data-slot="sidebar-inset"] > header [data-slot="dropdown-menu-trigger"] { min-height: 40px; }
+  :root [data-slot="breadcrumb-link"], :root [data-slot="breadcrumb-page"] { display: inline-flex; align-items: center; min-height: 32px; }
+  :root [data-slot="tabs-trigger"] { min-height: 40px; }
+  :root [data-slot="checkbox"] { width: 20px; height: 20px; }
+  :root [data-slot="sidebar-menu-button"], :root [data-slot="sidebar-menu-sub-button"] { min-height: 40px; }
+  :root [data-slot="dropdown-menu-item"], :root [data-slot="command-item"] { min-height: 40px; }
+
+  /* legacy views */
+  :root .legacy-workspace input[type='checkbox'], :root .legacy-workspace input[type='radio'] { width: 20px; height: 20px; }
+  :root .legacy-workspace input[type='checkbox']:checked::after { width: 10px; height: 5px; }
+  :root .icon-btn { width: 44px; height: 44px; }
+  :root .icon-btn.sm { width: 36px; height: 36px; flex-shrink: 0; }
+  :root .legacy-workspace .btn { min-height: 44px; }
+  :root .legacy-workspace .btn.sm, :root .legacy-workspace .compact { min-height: 38px !important; }
+  :root .check { min-height: 36px; }
+  :root .md-toolbar button { height: 38px; min-width: 38px; padding: 0 12px; }
+  :root .stop-dot { position: relative; }
+  :root .stop-dot::after { content: ''; position: absolute; inset: -8px; }
+  :root .subtab { padding: 13px 0 14px; }
+  :root .seg span { padding: 9px 14px; }
+  :root .seg.sm span { padding: 7px 12px; }
+  :root button.chip, :root .chip.toggle { min-height: 34px; }
+  :root .row { min-height: 52px; }
+  :root .rows.compact .row { min-height: 44px; }
+  /* a row's link should fill the row, so the whole strip is tappable */
+  :root .row > .row-main { align-self: stretch; justify-content: center; }
+  :root .td-count, :root .td-tw { min-height: 32px; }
+  /* small text-like buttons: keep the label, grow the hit area */
+  :root .codeblock-bar .linklike { min-height: 32px; padding: 0 6px; }
+  :root .matrix .linklike.num { min-width: 32px; min-height: 32px; }
+  /* padding, not display:flex — a flex summary loses its disclosure triangle */
+  :root .legacy-workspace details > summary { min-height: 36px; padding-top: 8px; padding-bottom: 8px; }
+}
+
+/* no hover on touch: show what hover used to reveal, stop hover states sticking */
+@media (hover: none) {
+  :root .row .reveal { opacity: 1; }
+  :root .cal-cell.sel .cal-add { opacity: 1; }
+  :root .legacy-workspace .btn:hover { background: var(--paper); border-color: var(--line-2); }
+  :root .legacy-workspace .btn.primary:hover { background: var(--foreground); border-color: var(--foreground); }
+  :root .legacy-workspace .btn.ghost:hover, :root .icon-btn:hover { background: transparent; }
+  :root .legacy-workspace .btn:active, :root .legacy-workspace .btn.ghost:active, :root .icon-btn:active { background: var(--wash); }
+  :root .legacy-workspace .btn.primary:active { background: var(--ink-2); }
+  :root .stop-dot:hover { transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   Phone layout for the legacy views
+   -------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  :root .note-title { font-size: 1.375rem !important; }
+  :root .note-meta select { max-width: 100%; flex: 1 1 100%; }
+  :root .source-bar { padding: 8px 10px; }
+  :root .link-summary div { flex-direction: column; gap: 2px; }
+  :root .link-summary dt { min-width: 0; }
+
+  :root .panel-head { flex-wrap: wrap; }
+  :root .head-actions > .btn:not(.primary) { flex: 1 1 auto; }
+  :root .head-actions > input, :root .head-actions > select { flex: 1 1 140px; }
+  :root .graph-toolbar { gap: 8px; }
+  :root .graph-toolbar > .btn { flex: 1 1 auto; }
+  :root .graph-legend { font-size: 0.6875rem; gap: 2px 10px; left: 8px; bottom: 8px; max-width: calc(100% - 16px); }
+  :root .conn-pickers > label:not(.check) { flex-basis: 100%; }
+  :root .degrees-num .num { font-size: 2rem; }
+  :root .line { row-gap: 18px; }
+  :root .stop-label { max-width: 130px; }
+
+  :root .inline-add { flex-wrap: wrap; }
+  :root .inline-add > input { flex: 1 1 200px; }
+  :root .task-add select, :root .td-add select { width: 100%; }
+  :root .row { gap: 10px; }
+  :root .row .tag { flex-shrink: 0; }
+
+  /* calendar: the whole day is the target; its items are listed below */
+  :root .cal-cell { min-height: 54px; }
+  :root .cal-date > span:first-child { min-width: 30px; height: 30px; }
+  :root .cal-pill { pointer-events: none; }
+  :root .week-day { padding: 10px 2px; border-radius: 10px; }
+  :root .wd-num { font-size: 1.0625rem; }
+
+  /* flashcard review: progress stays visible, grades stay under the thumb */
+  :root .review-top {
+    position: sticky; top: calc(var(--app-header-h) + var(--safe-t)); z-index: 5;
+    margin: 0 -16px 14px; padding: 10px 16px; background: var(--background);
+  }
+  /* unwrap the controls so the grade row can stick within the whole review column */
+  :root .review-controls { display: contents; }
+  :root .review-controls > * { margin-top: 14px; }
+  :root .review-controls > .grades {
+    position: sticky; bottom: 0; z-index: 5;
+    margin: 14px -16px 0; padding: 10px 16px calc(10px + var(--safe-b));
+    background: color-mix(in srgb, var(--background) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+    grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
+  }
+  :root .grade { min-height: 56px; padding: 10px 2px; }
+  :root .grade kbd, :root .btn kbd { display: none; }
+  :root .tpl-grid { grid-template-columns: 1fr 1fr; }
+  :root .tpl { padding: 10px 12px; }
+
+  /* styles.css collapses this to two columns at 980px; repeated here so the
+     phone layout holds regardless of which sheet wins the cascade */
+  :root .score-add { grid-template-columns: 1fr 1fr; }
+  :root .score-add input[name='name'] { grid-column: span 2; }
+  :root .score-add .btn { grid-column: span 2; }
+
+  :root .check-list { grid-template-columns: 1fr; }
+  :root .mark-picker span { width: 44px; height: 44px; }
+  :root .facts dd { font-size: 1.1875rem; }
+  :root .empty { padding: 28px 8px; }
+}
+
+@media (max-width: 380px) {
+  :root .legacy-workspace h1 { font-size: 1.375rem; }
+  :root .tpl-grid { grid-template-columns: 1fr; }
+  :root .grades { gap: 6px; }
+}
+
+/* phone on its side: give the content the height */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root .review-top, :root .review-controls > .grades { position: static; }
+  :root .index-card { min-height: 200px; }
+  :root .graph-body { grid-template-rows: 80dvh auto; }
+  :root [data-slot="dialog-content"] > .legacy-workspace { max-height: calc(100dvh - 9rem); }
+}

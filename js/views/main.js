@@ -426,7 +426,7 @@ Views.classes = {
         </section>` : ''}<section class="panel">
           <header class="panel-head"><h2>${lectures.length ? 'Other notes' : 'Notes and slides'}</h2><button class="btn sm" data-act="new-note">${icon('plus', 14)}New note</button></header>
           <ul class="rows">${others.slice(0, 12).map((n) => `
-            <li class="row"><a class="row-main" href="#/notes/${n.id}"><span class="row-title">${esc(n.title)}</span><span class="row-meta">${n.tags.includes('reading') ? '<span class="tag">Reading</span>' : n.tags.includes('my notes') ? '<span class="tag">My notes</span>' : n.source ? `<span class="tag">${esc(n.source.kindLabel || 'Imported')}</span>` : ''}<span>${new Date(n.updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span></span></a></li>`).join('') || '<li class="rows-empty">No notes yet. Add slides or write a note.</li>'}</ul>
+            <li class="row"><a class="row-main" href="#/notes/${n.id}"><span class="row-title">${esc(n.title)}</span><span class="row-meta">${n.tags.includes('reading') ? '<span class="tag">Reading</span>' : n.tags.includes('my notes') ? '<span class="tag">My notes</span>' : n.source ? `<span class="tag">${esc(n.source.kindLabel || 'Imported')}</span>` : ''}<span>${fmtStamp(n.updated)}</span></span></a></li>`).join('') || '<li class="rows-empty">No notes yet. Add slides or write a note.</li>'}</ul>
           ${others.length > 12 ? `<a class="quiet-link" href="#/notes?class=${id}">All ${notes.length} notes</a>` : ''}
         </section>`;
     const progressHTML=`<section class="panel">

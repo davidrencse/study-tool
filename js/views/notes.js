@@ -122,7 +122,7 @@ Views.notes = {
           ${list.map((n) => `
             <li><a href="#/notes/${n.id}${q}" class="${n.id === note?.id ? 'active' : ''}" data-note="${n.id}" ${n.id === note?.id ? 'aria-current="true"' : ''}>
               <span class="note-list-title">${n.classId ? mark(n.classId) : ''}<span data-title>${esc(n.title || 'Untitled')}</span></span>
-              <span class="note-list-meta">${n.source ? `${esc(n.source.kindLabel || 'File')}, ` : ''}${new Date(n.updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+              <span class="note-list-meta">${n.source ? `${esc(n.source.kindLabel || 'File')}, ` : ''}${fmtStamp(n.updated)}</span>
             </a></li>`).join('') || '<li class="rows-empty">No notes match.</li>'}
         </ul>
         <a class="btn block" href="#/import${q}">${icon('upload', 16)}Add slides or notes</a>

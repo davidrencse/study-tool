@@ -205,9 +205,14 @@ Views.connections = {
     const graph = buildGraph({ includeNotes: ConnUI.notes });
     const path = ConnUI.from && ConnUI.to ? shortestPath(graph, ConnUI.from, ConnUI.to) : null;
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+    // mount() runs straight after render() against the same state; hand it the
+    // graph rather than building a third copy.
+    this._graph = graph;
+    this._path = path;
 
     const cls = S().classes;
-    const topicGraph = buildGraph({ includeNotes: false });
+    // With notes excluded, the topic graph is exactly the graph we already built.
+    const topicGraph = ConnUI.notes ? buildGraph({ includeNotes: false }) : graph;
     const matrix = cls.map((a) => cls.map((b) => (a === b ? null : shortestPath(topicGraph, 'c:' + a.id, 'c:' + b.id)?.length - 1 || null)));
 
     const crossCount = new Map();
@@ -306,8 +311,9 @@ Views.connections = {
   },
 
   mount(el) {
-    const graph = buildGraph({ includeNotes: ConnUI.notes });
-    const path = ConnUI.from && ConnUI.to ? shortestPath(graph, ConnUI.from, ConnUI.to) : null;
+    const graph = this._graph || buildGraph({ includeNotes: ConnUI.notes });
+    const path = this._graph ? this._path : ConnUI.from && ConnUI.to ? shortestPath(graph, ConnUI.from, ConnUI.to) : null;
+    this._graph = this._path = null;
     const canvas = $('canvas', el);
     const keep = new Set();
     const adj = adjacency(graph);

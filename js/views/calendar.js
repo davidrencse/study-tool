@@ -238,7 +238,7 @@ Views.calendar = {
     const [a, b] = this.range();
     if (CalView.mode === 'month') {
       const [y, m] = CalUI.month.split('-').map(Number);
-      return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      return dateFormatter({ month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1));
     }
     const sameMonth = a.slice(0, 7) === b.slice(0, 7);
     return `${fmtDate(a, { month: 'short', day: 'numeric' })} – ${fmtDate(b, sameMonth ? { day: 'numeric' } : { month: 'short', day: 'numeric' })}, ${b.slice(0, 4)}`;

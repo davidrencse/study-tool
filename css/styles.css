@@ -272,60 +272,9 @@ button.chip:hover { border-color: var(--ink); }
 .callout { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 14px 16px; border-radius: var(--radius-md); background: var(--wash); margin: 12px 0; font-size: 0.875rem; }
 .callout.strong { background: var(--ink); color: var(--paper); }
 
-/* ---------- shell ---------- */
-.sidebar {
-  position: fixed; inset: 0 auto 0 0; width: var(--sidebar-w); z-index: 30;
-  display: flex; flex-direction: column; gap: 2px; overflow-y: auto;
-  padding: 18px 14px; background: var(--canvas);
-}
-.brand { display: flex; align-items: center; gap: 10px; padding: 6px 12px 22px; font-weight: 700; font-size: 1.0625rem; letter-spacing: -0.02em; text-decoration: none; }
-.brand-mark { width: 22px; height: 22px; border-radius: 7px; background: var(--ink); position: relative; }
-.brand-mark::after { content: ''; position: absolute; inset: 6px; border-radius: 2px; background: var(--canvas); }
-.nav-item, .nav-class {
-  display: flex; align-items: center; gap: 12px;
-  min-height: 40px; padding: 8px 12px; border-radius: 12px;
-  color: var(--ink-2); font-weight: 500; text-decoration: none;
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
-}
-.nav-item:hover, .nav-class:hover { background: var(--wash-2); color: var(--ink); }
-.nav-item.active { background: var(--paper); color: var(--ink); font-weight: 620; box-shadow: var(--card-shadow); }
-.nav-class { font-size: 0.875rem; color: var(--muted); min-height: 34px; }
-.nav-class .mark { margin: 0 8px 0 5px; }
-.nav-class.active { color: var(--ink); background: var(--paper); font-weight: 600; box-shadow: var(--card-shadow); }
-.nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nav-heading { font-size: 0.75rem; font-weight: 600; color: var(--faint); padding: 24px 12px 6px; }
-#nav-foot { margin-top: auto; padding-top: 16px; }
-
-.shell { margin-left: var(--sidebar-w); min-height: 100vh; display: flex; flex-direction: column; }
-.topbar {
-  position: sticky; top: 0; z-index: 20; height: var(--topbar-h);
-  display: flex; align-items: center; gap: 8px; padding: 0 32px;
-  background: color-mix(in srgb, var(--canvas) 86%, transparent);
-  backdrop-filter: saturate(1.2) blur(14px);
-}
-.search-wrap { position: relative; flex: 1; max-width: 520px; margin-right: auto; }
-.search-wrap input { padding-left: 40px !important; padding-right: 66px !important; background: var(--paper) !important; border-color: transparent !important; box-shadow: var(--card-shadow); border-radius: 999px !important; }
-.search-wrap input:focus { border-color: var(--ink) !important; }
-.search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
-.search-kbd { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
-#search-results { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: var(--paper); border-radius: 16px; box-shadow: var(--pop-shadow); max-height: 60vh; overflow: auto; padding: 6px; }
-.sr { display: flex; gap: 10px; width: 100%; text-align: left; padding: 9px 12px; border: 0; background: none; border-radius: 10px; cursor: pointer; align-items: flex-start; }
-.sr.active { background: var(--ink); color: var(--paper); }
-.sr.active small { color: inherit; opacity: 0.7; }
-.sr-icon { padding-top: 2px; }
-.sr-text { display: flex; flex-direction: column; min-width: 0; }
-.sr-text b, .sr-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sr-text b { font-weight: 600; }
-.sr-text small { color: var(--muted); }
-.sr-empty { padding: 14px; color: var(--muted); text-align: center; }
-
 main { flex: 1; }
 #view { outline: none; }
 .view { padding: 12px 32px 80px; max-width: 1360px; margin: 0 auto; }
-.view.enter { animation: enter 0.35s var(--ease); }
-@keyframes enter { from { opacity: 0; transform: translateY(6px); } }
-.only-mobile { display: none; }
-#scrim { display: none; }
 
 /* sections that share one nav entry */
 .subtabs { display: inline-flex; gap: 2px; padding: 4px; margin: 4px 0 26px; background: var(--wash-2); border-radius: 999px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
@@ -856,7 +805,7 @@ ol.steps strong { color: var(--ink); font-weight: 600; }
 .grade-tile-letter { font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin-top: 6px; }
 .grade-tile-pct { font-size: 0.8125rem; color: var(--muted); }
 .grade-tile.active .grade-tile-pct { color: inherit; opacity: 0.7; }
-.score-add { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 90px 90px auto; gap: 8px; margin-bottom: 8px; }
+.score-add { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) 84px 84px auto; gap: 8px; margin-bottom: 8px; }
 .score-group { margin-top: 18px; }
 .score-group-head { display: flex; align-items: baseline; gap: 10px; padding: 0 4px 4px; border-bottom: 1px solid var(--line); }
 .score-num { width: 76px !important; text-align: right; }
@@ -969,15 +918,7 @@ ol.steps strong { color: var(--ink); font-weight: 600; }
   .score-add input[name='name'] { grid-column: span 2; }
 }
 @media (max-width: 860px) {
-  .sidebar { transform: translateX(-100%); transition: transform 0.25s var(--ease); box-shadow: 0 0 60px rgb(0 0 0 / 0.25); background: var(--paper); }
-  body.nav-open .sidebar { transform: none; }
-  body.nav-open #scrim { display: block; position: fixed; inset: 0; background: rgb(0 0 0 / 0.4); z-index: 25; }
-  .shell { margin-left: 0; }
-  .only-mobile { display: inline-grid; }
-  .topbar { padding: 0 12px; gap: 6px; }
   .search-kbd, .hide-sm { display: none; }
-  .topbar .btn { padding: 7px 10px; }
-  .search-wrap input { padding-right: 12px !important; }
   .view { padding: 8px 16px 56px; }
   .hello h1 { font-size: 2rem; }
   .note-editor { padding: 18px; }
@@ -1032,188 +973,8 @@ ol.steps strong { color: var(--ink); font-weight: 600; }
   .plan-day { grid-template-columns: 1fr; gap: 4px; }
 }
 
-/* ==========================================================================
-   Mobile & touch
-   The breakpoints above handle layout. This block handles what only shows up
-   on a real phone: notches, the iOS focus zoom, finger-sized targets, controls
-   that were only reachable on hover, and the on-screen keyboard.
-   ========================================================================== */
-
-html { -webkit-tap-highlight-color: transparent; }
-body { overflow-x: clip; }
-
-/* no hover on touch: show what hover used to reveal, stop hover states sticking */
-@media (hover: none) {
-  .row .reveal { opacity: 1; }
-  .cal-cell.sel .cal-add { opacity: 1; }
-  .btn:hover { background: var(--paper); border-color: var(--line-2); }
-  .btn.primary:hover { background: var(--ink); border-color: var(--ink); }
-  .btn.ghost:hover, .icon-btn:hover { background: transparent; }
-  .btn:active, .btn.ghost:active, .icon-btn:active { background: var(--wash); }
-  .btn.primary:active { background: var(--ink-2); }
-  .stop-dot:hover { transform: none; }
-}
-
-/* finger-sized targets on coarse pointers */
-@media (pointer: coarse) {
-  input[type='checkbox'], input[type='radio'] { width: 20px; height: 20px; }
-  input[type='checkbox']:checked::after { width: 10px; height: 5px; }
-  .icon-btn { width: 44px; height: 44px; }
-  .icon-btn.sm { width: 36px; height: 36px; flex-shrink: 0; }
-  .btn { min-height: 44px; }
-  .btn.sm, .compact { min-height: 38px !important; }
-  .check { min-height: 36px; }
-  .nav-item { min-height: 44px; }
-  .nav-class { min-height: 40px; }
-  .md-toolbar button { height: 38px; min-width: 38px; padding: 0 12px; }
-  .stop-dot { position: relative; }
-  .stop-dot::after { content: ''; position: absolute; inset: -8px; }
-  .subtab { padding: 13px 0 14px; }
-  .seg span { padding: 9px 14px; }
-  .seg.sm span { padding: 7px 12px; }
-  button.chip, .chip.toggle { min-height: 34px; }
-  .row { min-height: 52px; }
-  .rows.compact .row { min-height: 44px; }
-}
-
-@media (max-width: 860px) {
-  /* notch / home-indicator safe areas */
-  .topbar {
-    height: calc(var(--topbar-h) + env(safe-area-inset-top));
-    padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
-  }
-  .view {
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
-    padding-bottom: calc(56px + env(safe-area-inset-bottom));
-  }
-  .sidebar {
-    width: min(300px, 86vw);
-    padding: calc(16px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-    overscroll-behavior: contain;
-    visibility: hidden; /* keeps the closed drawer out of the tab order */
-    transition: transform 0.25s var(--ease), visibility 0s 0.25s;
-  }
-  body.nav-open .sidebar { visibility: visible; transition: transform 0.25s var(--ease), visibility 0s; }
-  body.nav-open { overflow: hidden; }
-  #toasts { bottom: calc(16px + env(safe-area-inset-bottom)); }
-
-  /* iOS zooms into any field under 16px on focus */
-  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
-  select, textarea,
-  .compact, .filter-row select, .filter-row input,
-  .note-meta select, .note-meta input, .md-toolbar select,
-  .import-table input, .import-table select, .recall-input { font-size: 16px !important; }
-
-  /* search results span the screen */
-  .search-wrap { min-width: 0; }
-  #search-results { position: fixed; top: calc(var(--topbar-h) + env(safe-area-inset-top) - 2px); left: 8px; right: 8px; max-height: min(70dvh, 520px); overscroll-behavior: contain; }
-  .sr { padding: 11px 10px; }
-
-  /* heights that assumed a desktop window */
-  .notes-side { max-height: min(340px, 45dvh); }
-  .note-editor { min-height: 0; }
-  .md-panes { min-height: 0; }
-  .md-input { min-height: 300px; }
-  .graph-page { min-height: 0; }
-  .graph-body { grid-template-rows: min(62dvh, 520px) auto; }
-  .tree-scroll { max-height: 65dvh; min-height: 320px; }
-
-  /* toolbars and tabs scroll sideways instead of wrapping, running to the screen edge */
-  .md-toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-  .md-toolbar::-webkit-scrollbar { display: none; }
-  .md-toolbar > * { flex-shrink: 0; }
-  .subtabs { margin-left: -16px; margin-right: -16px; padding: 0 16px; }
-}
-
-@media (max-width: 600px) {
-  /* the search field takes the whole bar while typing */
-  .search-wrap:focus-within { margin-right: 0; }
-  .topbar:has(.search-wrap:focus-within) > :not(.search-wrap) { display: none; }
-
-  .note-title { font-size: 1.375rem !important; }
-  .note-meta select { max-width: 100%; flex: 1 1 100%; }
-  .source-bar { padding: 8px 10px; }
-  .link-summary div { flex-direction: column; gap: 2px; }
-  .link-summary dt { min-width: 0; }
-
-  .panel-head { flex-wrap: wrap; }
-  .head-actions > .btn:not(.primary) { flex: 1 1 auto; }
-  .head-actions > input, .head-actions > select { flex: 1 1 140px; }
-  .graph-toolbar { gap: 8px; }
-  .graph-toolbar > .btn { flex: 1 1 auto; }
-  .graph-legend { font-size: 0.6875rem; gap: 2px 10px; left: 8px; bottom: 8px; max-width: calc(100% - 16px); }
-  .conn-pickers > label:not(.check) { flex-basis: 100%; }
-  .degrees-num .num { font-size: 2rem; }
-  .line { row-gap: 18px; }
-  .stop-label { max-width: 130px; }
-
-  .inline-add { flex-wrap: wrap; }
-  .inline-add > input { flex: 1 1 200px; }
-  .task-add select { width: 100%; }
-  .row { gap: 10px; }
-  .row .tag { flex-shrink: 0; }
-
-  /* calendar: the whole day is the target; its items are listed below */
-  .cal-cell { min-height: 54px; }
-  .cal-date > span:first-child { min-width: 30px; height: 30px; }
-  .cal-pill { pointer-events: none; }
-  .week-day { padding: 10px 2px; border-radius: 10px; }
-  .wd-num { font-size: 1.0625rem; }
-
-  /* flashcard review: progress stays visible, grades stay under the thumb */
-  .review-top { position: sticky; top: calc(var(--topbar-h) + env(safe-area-inset-top)); z-index: 5; margin: -8px -16px 14px; padding: 10px 16px; background: var(--paper); }
-  /* unwrap the controls so the grade row can stick within the whole review column */
-  .review-controls { display: contents; }
-  .review-controls > * { margin-top: 14px; }
-  .review-controls > .grades {
-    position: sticky; bottom: 0; z-index: 5;
-    margin: 14px -16px 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
-    background: color-mix(in srgb, var(--paper) 92%, transparent);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid var(--line);
-    grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
-  }
-  .grade { min-height: 56px; padding: 10px 2px; }
-  .grade kbd, .btn kbd { display: none; }
-  .tpl-grid { grid-template-columns: 1fr 1fr; }
-  .tpl { padding: 10px 12px; }
-
-  .check-list { grid-template-columns: 1fr; }
-  .mark-picker span { width: 44px; height: 44px; }
-  .facts dd { font-size: 1.1875rem; }
-  .empty { padding: 28px 8px; }
-
-  /* dialogs become bottom sheets */
-  .modal-backdrop { place-items: end stretch; padding: env(safe-area-inset-top) 0 0; }
-  .modal, .modal.wide {
-    width: 100%; max-height: 92dvh;
-    border-width: 1px 0 0; border-radius: 18px 18px 0 0;
-    animation: sheet 0.32s var(--ease);
-  }
-  .modal-head { position: relative; padding: 18px 16px 12px; }
-  .modal-head::before { content: ''; position: absolute; top: 7px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 4px; background: var(--line-2); }
-  .modal-body { padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
-  .modal .form-actions .btn.primary { flex: 1; }
-}
-@keyframes sheet { from { transform: translateY(100%); } }
-
-@media (max-width: 380px) {
-  h1, .view-dashboard h1 { font-size: 1.375rem; }
-  .topbar .btn { padding: 7px 8px; }
-  .tpl-grid { grid-template-columns: 1fr; }
-  .grades { gap: 6px; }
-}
-
-/* phone on its side: give the content the height */
-@media (max-height: 500px) and (orientation: landscape) {
-  :root { --topbar-h: 52px; }
-  .review-top, .review-controls > .grades { position: static; }
-  .index-card { min-height: 200px; }
-  .graph-body { grid-template-rows: 80dvh auto; }
-}
+/* Mobile, touch and safe-area rules live in css/mobile.css (imported last). */
 
 /* grades: empty states */
 .grade-tile-letter.empty { font-size: 1rem; font-weight: 600; letter-spacing: 0; margin-top: 12px; }
 .grade-empty { font-size: 1rem; color: var(--muted); }
-.score-add { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) 84px 84px auto; }

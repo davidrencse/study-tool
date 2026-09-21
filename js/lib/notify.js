@@ -236,7 +236,7 @@ function timeAgo(ts) {
   if (m < 60) return `${m} min ago`;
   const h = Math.round(m / 60);
   if (h < 24) return `${h} hr ago`;
-  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return fmtStamp(ts);
 }
 
 /** A soft two-note chime (Web Audio, no files). */

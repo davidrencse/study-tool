@@ -196,7 +196,7 @@ Views.focus = {
       <div class="stack">
         <section class="panel">
           <header class="panel-head"><h2>Today</h2><span class="num strong">${focusHrs(focusMinutes({ from: today }))}</span></header>
-          <ul class="rows compact">${todayLog.map((l) => `<li class="row"><span class="row-main static"><span class="row-title">${l.classId ? mark(l.classId) : ''}${esc(l.label || className(l.classId) || 'Focus session')}</span><span class="row-meta">${new Date(l.at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span></span><span class="num">${l.minutes} min</span></li>`).join('') || '<li class="rows-empty">No sessions yet today. One 25-minute session is a great start.</li>'}</ul>
+          <ul class="rows compact">${todayLog.map((l) => `<li class="row"><span class="row-main static"><span class="row-title">${l.classId ? mark(l.classId) : ''}${esc(l.label || className(l.classId) || 'Focus session')}</span><span class="row-meta">${fmtClock(l.at)}</span></span><span class="num">${l.minutes} min</span></li>`).join('') || '<li class="rows-empty">No sessions yet today. One 25-minute session is a great start.</li>'}</ul>
         </section>
         <section class="panel">
           <header class="panel-head"><h2>Last 7 days</h2><span class="num strong">${focusHrs(focusMinutes({ from: weekStart }))}</span></header>

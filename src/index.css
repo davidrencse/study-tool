@@ -6,6 +6,8 @@
 @import "../css/workspace.css" layer(legacy);
 @import "tailwindcss";
 @import "tw-animate-css";
+/* Unlayered on purpose: phone corrections must win over Tailwind utilities. */
+@import "../css/mobile.css";
 @custom-variant dark (&:is(.dark *));
 :root {
   --background: #ffffff;

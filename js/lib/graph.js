@@ -25,6 +25,7 @@ class ForceGraph {
     this._bind();
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(canvas.parentElement);
+    this._watchTheme();
     this.resize();
   }
 
@@ -65,9 +66,11 @@ class ForceGraph {
       const o = old.get(n.id);
       const d = deg.get(n.id) || 0;
       const r = n.kind === 'class' ? 18 : n.kind === 'topic' ? 7 + Math.min(6, d) : 4.5 + Math.min(3, d * 0.5);
-      if (o) return { ...n, x: o.x, y: o.y, vx: 0, vy: 0, r, deg: d, fixed: o.fixed };
+      // Marks only change on a settings edit, which rebuilds the graph anyway.
+      const shape = n.kind === 'note' ? 'circle' : getClass(n.classId)?.mark || 'circle';
+      if (o) return { ...n, x: o.x, y: o.y, vx: 0, vy: 0, r, deg: d, fixed: o.fixed, shape };
       const a = classAnchor(n);
-      return { ...n, x: a.x + (Math.random() - 0.5) * 120, y: a.y + (Math.random() - 0.5) * 120, vx: 0, vy: 0, r, deg: d };
+      return { ...n, x: a.x + (Math.random() - 0.5) * 120, y: a.y + (Math.random() - 0.5) * 120, vx: 0, vy: 0, r, deg: d, shape };
     });
     this.byId = new Map(this.nodes.map((n) => [n.id, n]));
     this.edges = edges.filter((e) => this.byId.has(e.source) && this.byId.has(e.target)).map((e) => ({ ...e, s: this.byId.get(e.source), t: this.byId.get(e.target) }));
@@ -103,10 +106,18 @@ class ForceGraph {
     cancelAnimationFrame(this._raf);
     const loop = () => {
       if (!this.running) return;
-      if (this.alpha > 0.005 || this.drag) {
-        this.tick();
-        this.alpha *= 0.985;
+      // Once the layout settles there is nothing new to draw: paint the last
+      // frame and idle, rather than burning a core at 60fps for as long as the
+      // view is open. Panning, zooming and hovering repaint directly, and
+      // reheat() starts the loop again when the layout actually changes.
+      if (this.alpha <= 0.005 && !this.drag) {
+        this.draw();
+        this.running = false;
+        this._raf = 0;
+        return;
       }
+      this.tick();
+      this.alpha *= 0.985;
       this.draw();
       this._raf = requestAnimationFrame(loop);
     };
@@ -121,6 +132,8 @@ class ForceGraph {
   destroy() {
     this.stop();
     this.ro.disconnect();
+    this._themeObserver?.disconnect();
+    this._scheme?.removeEventListener('change', this._onScheme);
     window.removeEventListener('pointermove', this._onMove);
     window.removeEventListener('pointerup', this._onUp);
   }
@@ -182,16 +195,31 @@ class ForceGraph {
     }
   }
 
+  /** getComputedStyle forces a style recalculation, so resolve the palette when
+   *  the theme changes rather than on every frame. */
   readColors() {
+    if (this.col) return;
     const cs = getComputedStyle(document.documentElement);
     const v = (k, d) => cs.getPropertyValue(k).trim() || d;
     this.col = { ink: v('--ink', '#000'), paper: v('--paper', '#fff'), muted: v('--muted', '#777'), edge: v('--graph-edge', '#bbb') };
   }
 
+  _watchTheme() {
+    const invalidate = () => {
+      this.col = null;
+      this.draw();
+    };
+    this._themeObserver = new MutationObserver(invalidate);
+    this._themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] });
+    this._scheme = matchMedia('(prefers-color-scheme: dark)');
+    this._onScheme = invalidate;
+    this._scheme.addEventListener('change', invalidate);
+  }
+
   /** Draw a node's shape: classes and their topics share the class mark. */
   _shape(n, r) {
     const { ctx } = this;
-    const shape = n.kind === 'note' ? 'circle' : getClass(n.classId)?.mark || 'circle';
+    const shape = n.shape;
     ctx.beginPath();
     switch (shape) {
       case 'square':

@@ -226,16 +226,6 @@ iframe { background:#fff; }
   .exam-countdown-panel { margin:24px 0; } .hub-due.overdue { padding:4px 6px; } .modal { border-radius:12px; }
 }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; scroll-behavior:auto !important; } }
-/* Focus pass: keep optional navigation and actions quiet until requested. */
-.create-menu { position:relative; flex-shrink:0; }
-.create-menu summary { list-style:none; cursor:pointer; }
-.create-menu summary::-webkit-details-marker { display:none; }
-.create-menu-items { position:absolute; right:0; top:calc(100% + 10px); width:190px; padding:8px; background:var(--paper); border:1px solid var(--line); border-radius:10px; box-shadow:var(--pop-shadow); z-index:40; }
-.create-menu-items .btn { width:100%; display:flex; justify-content:flex-start; border:0; background:none; }
-.create-menu-items #quick-note { display:flex; }
-.nav-explore { margin-top:16px; }
-.nav-explore summary { cursor:pointer; color:var(--sidebar-muted); padding:10px 12px; font-size:.73rem; }
-.nav-explore[open] summary { margin-bottom:4px; }
 .sidebar-footer { display:flex; align-items:center; gap:8px; border-top:1px solid #333333; margin-top:auto; padding-top:14px; }
 .sidebar-footer #nav-foot { flex:1; margin:0; padding:0; border:0; }
 .sidebar-footer .icon-btn { color:var(--sidebar-muted); }

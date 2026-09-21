@@ -92,6 +92,12 @@ Problems come from `Vault/4 - Main Notes/Leetcode/<Easy|Medium|Hard>/<number>. <
 - The **pattern** is guessed from the problem number (NeetCode list). Change it, and add a one-line **key idea**, on the problem's page. Both are saved in the app only; your vault isn't changed.
 - **Open in Obsidian** jumps to the note. **Review with ChatGPT** asks for complexity, missed edge cases and a better approach.
 
+## On a phone
+The sidebar becomes a drawer under the ☰ button, tab strips scroll sideways, dialogs fill the width,
+and the flashcard grade buttons stick to the bottom of the screen while you review. Buttons,
+checkboxes and menu rows grow to finger size on touch screens, form fields use 16px text so iOS
+doesn't zoom when you tap them, and the layout keeps clear of a notch and the home indicator.
+
 ## Tips
 - `Ctrl+K` or `/` searches everything.
 - Starter deadlines are marked **[Template]**. Remove them in **Settings → Remove example deadlines**.
@@ -122,7 +128,13 @@ js/views/             one file per area: main, notes, cards, ai, graph, plan, ca
 
 css/styles.css        the shared black-and-white system
 css/                  calendar.css, planner.css, leetcode.css, workspace.css (per-area styling)
+css/mobile.css        phone and touch corrections, imported last and unlayered
 ```
+
+`css/mobile.css` is imported from `src/index.css` **after** Tailwind and without a layer, so it can
+correct both Tailwind utilities and the legacy views. Its selectors carry a `:root` prefix because
+`src/index.css` sets its own unlayered `.legacy-workspace …` rules further down the file; the extra
+weight is what keeps the phone rules from losing to them. Keep new rules inside a media query.
 
 The `js/` files are classic scripts sharing one global scope, so the order of the `<script>` tags in
 `index.html` matters: `core/` first, then `data/`, `lib/`, `views/`, and `app.js` last.

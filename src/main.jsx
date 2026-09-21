@@ -1212,4 +1212,9 @@ function App() {
     </TooltipProvider>
   );
 }
-createRoot(document.getElementById("root")).render(<App />);
+const container = document.getElementById("root");
+// Vite re-runs this module on every hot update. Without reusing the root, each
+// update calls createRoot on a container that already has one: React warns and
+// the previous tree is orphaned with its effects and listeners still attached.
+const root = (container.__studyHubRoot ||= createRoot(container));
+root.render(<App />);
