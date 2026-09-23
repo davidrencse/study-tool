@@ -58,16 +58,22 @@ const TIME_OPTS = { hour: 'numeric', minute: '2-digit' };
 let _tf = null;
 const timeFormatter = () => (_tf ||= new Intl.DateTimeFormat(undefined, TIME_OPTS));
 
+// Intl.DateTimeFormat#format throws on an unrepresentable date, where
+// toLocaleDateString returned the string 'Invalid Date'. Corrupt or imported
+// records should degrade the same way they always did, not crash the view.
+const formatOr = (formatter, d) =>
+  Number.isNaN(d.getTime()) ? 'Invalid Date' : formatter.format(d);
+
 function fmtDate(s, opts = { month: 'short', day: 'numeric' }) {
-  return dateFormatter(opts).format(parseYmd(s));
+  return formatOr(dateFormatter(opts), parseYmd(s));
 }
 /** Same formatting as fmtDate, for a millisecond timestamp. */
 function fmtStamp(ts, opts = { month: 'short', day: 'numeric' }) {
-  return dateFormatter(opts).format(new Date(ts));
+  return formatOr(dateFormatter(opts), new Date(ts));
 }
 /** Clock time from a millisecond timestamp. */
 function fmtClock(ts) {
-  return timeFormatter().format(new Date(ts));
+  return formatOr(timeFormatter(), new Date(ts));
 }
 function relDay(s) {
   const n = daysBetween(todayStr(), s);
@@ -83,7 +89,7 @@ function fmtTime(t) {
   const [h, m] = t.split(':').map(Number);
   const d = new Date();
   d.setHours(h, m, 0, 0);
-  return timeFormatter().format(d);
+  return formatOr(timeFormatter(), d);
 }
 
 /* ---------- calendar entries: deadlines (due, can be done/overdue) vs scheduled events ---------- */
@@ -274,6 +280,12 @@ function migrate(s) {
     c.reps ??= 0;
     c.lapses ??= 0;
     c.due ??= todayStr();
+    // Cards scheduled before intervals were capped can hold an interval whose
+    // due date no longer parses; bring them back into review rather than
+    // leaving them invisible.
+    if (!Number.isFinite(c.interval) || c.interval < 0) c.interval = 0;
+    if (c.interval > MAX_INTERVAL) c.interval = MAX_INTERVAL;
+    if (Number.isNaN(parseYmd(String(c.due)).getTime())) c.due = todayStr();
   });
   // v1 template notes opened with an emoji heading
   s.notes.forEach((n) => {
@@ -676,6 +688,9 @@ function shortestPath(graph, from, to) {
 /* ==========================================================================
    Spaced repetition (SM-2 variant with Anki-style buttons)
    ========================================================================== */
+/** Review intervals are capped so a due date always stays a real date. */
+const MAX_INTERVAL = 36500;
+
 const SRS = {
   preview(card, grade) {
     const c = { ...card };
@@ -698,6 +713,10 @@ const SRS = {
       c.interval = c.reps === 0 ? 4 : Math.round(Math.max(c.interval, 1) * c.ease * 1.3);
       c.reps++;
     }
+    // Easy compounds interval by ease * 1.3 with no bound on ease, so an
+    // uncapped interval runs past the range a date can express: `due` becomes
+    // NaN-NaN-NaN and the card drops out of dueCards() for good.
+    c.interval = Math.min(Math.max(0, Math.round(c.interval) || 0), MAX_INTERVAL);
     c.due = addDays(today, c.interval);
     return c;
   },

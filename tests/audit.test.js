@@ -424,3 +424,61 @@ test('connections hands its graph to mount instead of rebuilding it', () => {
  assert.equal(run('Views.connections._graph!==null'), true);
  run('buildGraph=realBuildGraph');
 });
+
+test('review intervals stay inside the range a date can express', () => {
+ const run = app();
+ // Easy compounds the interval by ease * 1.3, and ease has no upper bound, so
+ // without a cap the due date overflows and the card vanishes from review.
+ run("var c=newCard({front:'f',back:'b'});");
+ for (let i = 0; i < 40; i++) {
+  run('c=Object.assign(c,SRS.preview(c,3));');
+  const interval = run('c.interval');
+  const due = run('c.due');
+  assert.ok(Number.isFinite(interval) && interval >= 0, `interval ${interval} at rep ${i}`);
+  assert.ok(interval <= 36500, `interval ${interval} exceeded the cap at rep ${i}`);
+  assert.match(due, /^\d{4}-\d{2}-\d{2}$/, `due ${due} at rep ${i}`);
+  assert.equal(run('Number.isNaN(parseYmd(c.due).getTime())'), false, `due ${due} does not parse`);
+ }
+ // a card at the cap is still found by the same query the review screen uses
+ run("S().cards.push(Object.assign(newCard({front:'capped',back:'b'}),{due:todayStr(),interval:36500}));");
+ assert.equal(run("dueCards().some(c=>c.front==='capped')"), true);
+ // every other grade still schedules sanely
+ for (const grade of [0, 1, 2]) {
+  run(`var g=newCard({front:'g',back:'b'});g=Object.assign(g,SRS.preview(g,${grade}));`);
+  assert.match(run('g.due'), /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(run('g.ease') >= 1.3, 'ease floor held');
+ }
+});
+
+test('date formatting degrades instead of throwing on unusable values', () => {
+ const run = app();
+ // Intl.DateTimeFormat#format throws where toLocaleDateString returned a string;
+ // corrupt or imported records must not take a view down with them.
+ for (const expr of ['fmtDate("NaN-NaN-NaN")', 'fmtDate("not-a-date")', 'fmtDate("")',
+                     'fmtStamp(NaN)', 'fmtClock(NaN)']) {
+  assert.equal(run(expr), 'Invalid Date', expr);
+ }
+ // Out-of-range parts are not unusable: parseYmd builds a Date, which rolls them
+ // over (month 13 becomes January of the next year). Formatting follows suit.
+ assert.equal(run('fmtDate("2026-13-99",{weekday:"long"})'),
+              run('parseYmd("2026-13-99").toLocaleDateString(undefined,{weekday:"long"})'));
+ // real values are unaffected
+ assert.equal(run('fmtDate("2026-09-20")'), run('parseYmd("2026-09-20").toLocaleDateString(undefined,{month:"short",day:"numeric"})'));
+ assert.equal(run('fmtTime("")'), '');
+});
+
+test('cards saved with an unusable schedule are repaired on load', () => {
+ const run = app();
+ run(`var s=JSON.parse(JSON.stringify(S()));
+      s.cards.push({id:'broken',front:'lost',back:'b',classId:'',topicId:'',source:'manual',
+                    ease:2.5,interval:4.4e8,reps:9,lapses:0,due:'NaN-NaN-NaN',created:Date.now()});
+      s.cards.push({id:'neg',front:'neg',back:'b',classId:'',topicId:'',source:'manual',
+                    ease:2.5,interval:-5,reps:1,lapses:0,due:'2026-09-20',created:Date.now()});
+      Store.state=migrate(s);`);
+ assert.equal(run("S().cards.find(c=>c.id==='broken').interval"), 36500);
+ assert.equal(run("S().cards.find(c=>c.id==='broken').due"), run('todayStr()'));
+ assert.equal(run("dueCards().some(c=>c.id==='broken')"), true, 'repaired card is reviewable again');
+ assert.equal(run("S().cards.find(c=>c.id==='neg').interval"), 0);
+ // repair must not disturb healthy cards
+ assert.equal(run("S().cards.filter(c=>Number.isNaN(parseYmd(String(c.due)).getTime())).length"), 0);
+});
