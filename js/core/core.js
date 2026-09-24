@@ -690,6 +690,11 @@ function shortestPath(graph, from, to) {
    ========================================================================== */
 /** Review intervals are capped so a due date always stays a real date. */
 const MAX_INTERVAL = 36500;
+/* Ease has to have a ceiling: it rises 0.15 on every Easy grade, so without one
+   the Easy multiplier (ease * bonus) climbs review after review and the schedule
+   runs away. The bonus keeps Easy ahead of Good without compounding as hard. */
+const MAX_EASE = 2.8;
+const EASY_BONUS = 1.15;
 
 const SRS = {
   preview(card, grade) {
@@ -709,8 +714,8 @@ const SRS = {
       c.interval = c.reps === 0 ? 1 : c.reps === 1 ? 3 : Math.round(c.interval * c.ease);
       c.reps++;
     } else {
-      c.ease += 0.15;
-      c.interval = c.reps === 0 ? 4 : Math.round(Math.max(c.interval, 1) * c.ease * 1.3);
+      c.ease = Math.min(MAX_EASE, c.ease + 0.15);
+      c.interval = c.reps === 0 ? 4 : Math.round(Math.max(c.interval, 1) * c.ease * EASY_BONUS);
       c.reps++;
     }
     // Easy compounds interval by ease * 1.3 with no bound on ease, so an

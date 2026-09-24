@@ -442,6 +442,13 @@ test('review intervals stay inside the range a date can express', () => {
  // a card at the cap is still found by the same query the review screen uses
  run("S().cards.push(Object.assign(newCard({front:'capped',back:'b'}),{due:todayStr(),interval:36500}));");
  assert.equal(run("dueCards().some(c=>c.front==='capped')"), true);
+ // ease has a ceiling, so the Easy multiplier cannot compound without bound
+ run("var e=newCard({front:'e',back:'b'});");
+ for (let i = 0; i < 30; i++) run('e=Object.assign(e,SRS.preview(e,3));');
+ assert.ok(run('e.ease') <= 2.8 + 1e-9, `ease ${run('e.ease')} passed its ceiling`);
+ // Good is the common grade and must be unaffected by the Easy tuning
+ run("var gd=newCard({front:'gd',back:'b'});var seen=[];for(let i=0;i<8;i++){gd=Object.assign(gd,SRS.preview(gd,2));seen.push(gd.interval);}");
+ assert.equal(run('JSON.stringify(seen)'), '[1,3,8,20,50,125,313,783]');
  // every other grade still schedules sanely
  for (const grade of [0, 1, 2]) {
   run(`var g=newCard({front:'g',back:'b'});g=Object.assign(g,SRS.preview(g,${grade}));`);
