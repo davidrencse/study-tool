@@ -30,13 +30,15 @@ test('fresh storage and reset initialize identical course content', () => {
 test('Brightspace email deadlines and submission corrections update the planner', () => {
   const run = app();
   assert.equal(run("S().events.find(e=>e.key==='os-assignment-1').date"), '2026-09-29');
-  assert.equal(run("S().events.find(e=>e.key==='os-assignment-1').time"), '');
-  assert.equal(run("S().events.find(e=>e.key==='sec-pa1').dueAt"), '2026-09-22T21:00:00Z');
-  assert.equal(run("S().events.find(e=>e.key==='nut-connect-0').dueAt"), '2026-09-21T20:55:00Z');
+  assert.equal(run("S().events.find(e=>e.key==='os-assignment-1').time"), '14:00');
+  assert.equal(run("S().events.find(e=>e.key==='os-assignment-1').dueAt"), '2026-09-29T18:00:00.000Z');
+  assert.equal(run("S().events.find(e=>e.key==='sec-pa1').dueAt"), '2026-09-22T21:00:00.000Z');
+  assert.equal(run("S().events.find(e=>e.key==='nut-connect-0').dueAt"), '2026-09-21T20:55:00.000Z');
   assert.match(run("S().events.find(e=>e.key==='sec-pa1').notes"), /directly through Brightspace/);
   assert.match(run("S().classes.find(c=>c.id==='sec').custom.find(f=>f.k==='Submissions').v"), /Brightspace/);
   assert.equal(run("S().events.filter(e=>e.key==='nut-connect-0').length"),1);
-  assert.equal(run("S().events.find(e=>e.key==='sec-pa1').sources.length"),3);
+  assert.ok(run("S().events.find(e=>e.key==='sec-pa1').sources.length") >= 3);
+  assert.ok(run("S().events.find(e=>e.key==='sec-pa1').sources.some(x=>x.label==='Brightspace assignment')"));
 });
 test('email updates preserve existing completion and apply only once', () => {
   const run = app();
@@ -47,12 +49,63 @@ test('email updates preserve existing completion and apply only once', () => {
   const count=run('S().events.length');run('applyPacks(S());Store.save();Store.state=null;Store.load()');
   assert.equal(run('S().events.length'),count);
 });
+
+test('Brightspace archive merges current course deadlines and materials once', () => {
+  const run = app();
+  assert.equal(run("S().events.filter(e=>e.brightspaceKey==='brightspace-dropbox-627912-1248471').length"), 1);
+  assert.equal(run("S().events.find(e=>e.key==='sec-pa2').time"), '17:00');
+  assert.equal(run("S().events.find(e=>e.key==='sec-pa1').done"), true);
+  assert.equal(run("S().events.find(e=>e.key==='os-assignment-1').done"), false);
+  assert.ok(run("S().notes.some(n=>n.id==='brightspace-os-assignment-1248471')"));
+  assert.ok(run("S().classes.find(c=>c.id==='os').resources.some(r=>r.url.includes('library/brightspace/os/'))"));
+  const count = run('S().events.length');
+  run("S().events.find(e=>e.key==='os-assignment-1').done=true;applyPacks(S());Store.save();Store.state=null;Store.load()");
+  assert.equal(run('S().events.length'), count);
+  assert.equal(run("S().events.find(e=>e.key==='os-assignment-1').done"), true);
+});
+
+test('reviewed Brightspace details replace stale duplicates and add missing dates', () => {
+  const run = app();
+  assert.equal(run("S().events.filter(e=>e.key==='nut-connect-0').length"), 1);
+  assert.equal(run("S().events.some(e=>e.key==='brightspace-calendar-609704-2025033')"), false);
+  assert.equal(run("S().events.find(e=>e.key==='nut-quiz1').time"), '23:59');
+  assert.equal(run("S().events.find(e=>e.key==='nut-final-2026').date"), '2026-12-21');
+  assert.equal(run("S().events.find(e=>e.key==='nut-final-2026').time"), '18:00');
+  assert.equal(run("S().events.find(e=>e.classId==='urb'&&/resilien(?:cy|ce).*essay/i.test(e.title)).date"), '2026-09-25');
+  assert.equal(run("S().events.filter(e=>e.classId==='urb'&&/resilien(?:cy|ce).*essay/i.test(e.title)).length"), 1);
+  assert.equal(run("S().events.filter(e=>e.classId==='urb'&&/MT Topic Intro/i.test(e.title)).length"), 2);
+  assert.equal(run("S().events.find(e=>e.key==='urb-midterm-paper-2026').date"), '2026-10-30');
+  assert.equal(run("S().events.some(e=>e.classId==='urb'&&e.title.startsWith('[Template]'))"), false);
+  assert.ok(run("S().notes.find(n=>n.id==='brightspace-nut-exam1-study-20261001').body.includes('review sheet')"));
+  assert.equal(run("S().tasks.find(t=>t.title.startsWith('PA1: expand')).done"), true);
+});
+
+test('every class topic has subtopic notes and review cards without resetting progress', () => {
+  const run = app();
+  assert.equal(run('S().topics.length'), 55);
+  assert.equal(run('S().topics.every(t=>S().notes.filter(n=>n.topicId===t.id&&n.tags.includes("study-guide")).length>=3)'), true);
+  assert.equal(run('S().notes.filter(n=>n.tags.includes("study-guide")).length'), 169);
+  assert.equal(run('S().topics.every(t=>S().cards.filter(c=>c.topicId===t.id&&c.source==="study-guide").length>=6)'), true);
+  assert.equal(run('new Set(S().cards.filter(c=>c.guideKey).map(c=>c.guideKey)).size'), 340);
+  assert.ok(run('new Set(S().cards.filter(c=>c.guideKey).map(c=>c.due)).size') > 7);
+  run('const card=S().cards.find(c=>c.guideKey);card.reps=4;card.due="2026-11-15";Store.save();Store.state=null;Store.load()');
+  assert.equal(run('S().cards.find(c=>c.guideKey).reps'), 4);
+  assert.equal(run('S().cards.find(c=>c.guideKey).due'), '2026-11-15');
+  assert.equal(run('S().cards.filter(c=>c.guideKey).length'), 340);
+});
+
+test('Brightspace refresh cleans old duplicates without losing completion', () => {
+  const run = app();
+  run("const old=BRIGHTSPACE_SNAPSHOT.courses.find(c=>c.classId==='nut').events.find(e=>e.key==='brightspace-calendar-609704-2025036');S().events.push({id:'old-copy',done:false,topicIds:[],...old});S().events.find(e=>e.key==='nut-connect-1').done=true;S().appliedPacks=S().appliedPacks.filter(id=>!id.endsWith('-merge-v3'));applyPacks(S())");
+  assert.equal(run("S().events.filter(e=>e.key==='brightspace-calendar-609704-2025036').length"), 0);
+  assert.equal(run("S().events.find(e=>e.key==='nut-connect-1').done"), true);
+});
 test('Tasks includes coursework, everyday tasks and actionable list items', () => {
   const run=app();
   assert.equal(run("taskHubItems().filter(t=>t.kind==='coursework').length"),run('deadlines().length'));
   assert.equal(run("taskHubItems().some(t=>t.kind==='coursework'&&isScheduled(t.record))"),false);
   assert.equal(run("taskHubItems().filter(t=>t.kind==='lists').every(t=>!todoKids(t.id).length)"),true);
-  assert.ok(run("taskHubFilter(taskHubItems(),{source:'coursework',q:'Assignment 1'}).length")>=2);
+  assert.ok(run("taskHubFilter(taskHubItems(),{source:'coursework',q:'Homework 1'}).length")>=1);
   assert.equal(run("taskHubFilter(taskHubItems(),{source:'coursework',class:'sec'}).every(t=>t.classId==='sec')"),true);
   assert.equal(run("taskHubFilter(taskHubItems(),{status:'done'}).every(t=>t.done)"),true);
   assert.equal(run("taskHubFilter(taskHubItems(),{when:'overdue'}).every(t=>t.date<todayStr()&&!t.done)"),true);

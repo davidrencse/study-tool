@@ -89,6 +89,7 @@ function noteMatches(n, q) {
 
 const NOTE_KINDS = [
   ['', 'All notes'],
+  ['guide', 'Study guides'],
   ['written', 'Written'],
   ['imported', 'Slides & files'],
 ];
@@ -101,7 +102,8 @@ Views.notes = {
     const list = all.filter((n) =>
       (classFilter === '' || n.classId === classFilter) &&
       noteMatches(n, NotesUI.q) &&
-      (!NotesUI.kind || (NotesUI.kind === 'imported') === !!n.source));
+      (!NotesUI.kind || (NotesUI.kind === 'guide' ? n.tags?.includes('study-guide') :
+        NotesUI.kind === 'imported' ? !!n.source : !n.source && !n.tags?.includes('study-guide'))));
     const note = id ? getNote(id) : list[0];
     this._current = note?.id;
     const q = classFilter ? `?class=${classFilter}` : '';

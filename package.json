@@ -6,7 +6,9 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node --test tests/audit.test.js",
+    "brightspace:export": "node tools/brightspace-export.mjs",
+    "brightspace:import": "node tools/brightspace-import.mjs",
+    "test": "node --test tests/audit.test.js tests/brightspace-export.test.mjs",
     "check": "npm test && npm run build && npm run check:build",
     "check:build": "node tools/check-build.js"
   },

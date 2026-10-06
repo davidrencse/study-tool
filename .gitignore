@@ -1,2 +1,5 @@
 node_modules/
 dist/
+brightspace-export/
+brightspace-current/
+brightspace-cookies*.json

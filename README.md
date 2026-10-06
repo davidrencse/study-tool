@@ -49,6 +49,8 @@ The sidebar groups pages under **Plan**, **Classes**, **Materials**, and **Tools
 The bell in the top bar collects reminders: the day before something is due, the morning it's due, an hour before, when it becomes overdue, a week and 3 days before exams, before class starts, and once a day when flashcards are due. Turn on desktop notifications from the bell or in **Settings → Reminders**. Reminders only run while Study Hub is open (a background tab is fine).
 
 ## Your course content
+
+The study guides cover all 55 topics across the four classes with 169 concise subtopic notes and 340 short-answer flashcards. In **Notes & slides**, choose **Study guides** from the Kind filter to read them. In **Flashcards**, use **Browse** to see all cards or **Review** for spaced practice. New cards are spread over 14 days; reloading adds missing guides without resetting card review progress or overwriting notes you edited.
 `js/data/packs-data.js` and `js/data/packs.js` / `js/data/packs-more.js` load your real Fall 2026 content once: syllabi details, class times, deadlines and exams, lecture notes built from the slides (Operating Systems lectures 1–21, Security weeks 1–2, Nutrition chapters 1–2), your own notes and reading notes from `Desktop\info`, and flashcards for what's been covered so far. The slides, syllabi and textbooks are copied into `library/`, and notes link straight to them (textbook readings open at the right page). Dates marked "confirm" in the notes weren't fully spelled out in the syllabus.
 
 Classes are told apart by **shape**, not color: ■ OS, ▲ Security, ● Nutrition, ◆ Urban Studies (change a shape under Classes, then *Rename or change mark*).
@@ -84,7 +86,56 @@ Brightspace emails checked on September 17, 2026 supply confirmed OS Assignment 
 - In **Week**, click an empty slot to add an event at that time. When you open one repeat of an event, you can delete just that day.
 - **Import .ics / Export .ics** (bottom of the calendar sidebar) moves events to and from Google, Outlook or Apple Calendar.
 
+## Brightspace course export
+
+`npm run brightspace:export -- --cookies C:\\path\\to\\brightspace-cookies.json`
+exports the accessible course structure to the ignored `brightspace-export/` directory.
+The default site is NYU Brightspace, matching the course links already in this
+project. For another institution, pass its **Brightspace origin** with `--site`
+(the address before `/d2l/`), not a course page URL.
+You can limit the run with `--course 12345`, change the destination with `--out DIR`,
+or use `--metadata-only` to skip binary downloads. Run
+`node tools/brightspace-export.mjs --help` for the full CLI.
+If a long export is interrupted, rerun with `--resume` to skip courses that
+already have completed manifests. Replace an expired cookie file before resuming.
+For large archives, `--concurrency 3` processes three courses at once.
+
+The cookie file can be a Netscape HTTP Cookie File, a JSON array exported from
+your own signed-in browser, or Playwright `storageState` JSON. Keep it outside the repository if
+possible; `brightspace-cookies*.json` is ignored as a safeguard. The script reads
+it locally and sends only exact-host Brightspace cookies to the specified site. It
+does not save credentials in its export. If the Brightspace API rejects browser
+cookies, use an OAuth access token in the `BRIGHTSPACE_TOKEN` environment variable
+instead; browser sign-in does not guarantee API authentication. Never paste a
+token or cookies into a command line argument, issue, or commit.
+
+The export includes assignment instructions, due dates, attachments, your own
+submissions and published feedback; nested course modules and topics; the
+accessible course file tree and files; announcements and their attachments;
+your own grade values, calendar events, quiz metadata, and discussion forum and
+topic metadata. Each course has a `manifest.json` listing counts and
+permission/download failures. The script makes GET requests only. Brightspace
+role permissions, OAuth scopes, date restrictions, and externally linked
+resources can limit what it can read. It does not export hidden content, quiz question banks,
+other students' submissions, or arbitrary external sites.
+
+`npm run brightspace:import -- brightspace-current` turns the four Fall 2026
+course exports into Study Hub deadlines, assignment instructions, module notes,
+and material links. It copies files up to 50 MB into `library/brightspace/`;
+larger files remain in the private archive and link back to Brightspace. The
+generated `js/data/brightspace-snapshot.js` contains course data but no cookies,
+grades, or submitted work. The app merges it into existing browser data once
+per export, marks confirmed submissions complete, and retains user notes and
+other completion changes. Rerun the export and
+import after refreshing the browser cookie file; each new snapshot updates
+Brightspace deadlines by source ID. The complete private archive remains in
+`brightspace-export/` and is ignored by Git.
+
+The API routes and authentication behavior follow the
+[Brightspace developer documentation](https://docs.valence.desire2learn.com/).
+
 ## LeetCode
+
 Problems come from `Vault/4 - Main Notes/Leetcode/<Easy|Medium|Hard>/<number>. <Title>.md`. Each note needs the solution in a code block. The LeetCode link and notes below the code are optional.
 
 - **After solving more problems**, run `node tools/sync-leetcode.js "/path/to/Vault"` and reload the app. Optionally pass the vault-relative LeetCode folder as a second argument. You can also set `OBSIDIAN_VAULT` and run the command without arguments. Paths with spaces must be quoted; Linux paths are case-sensitive. New problems are added, changed code and notes are updated, and your practice history is kept. Or click **Sync from vault** and pick the vault or its `Leetcode` folder.

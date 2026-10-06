@@ -236,7 +236,7 @@ Views.cards = {
       hardest: (x, y) => x.ease - y.ease || y.lapses - x.lapses,
     };
     list.sort(sorters[b.sort]);
-    const shown = list.slice(0, 400);
+    const shown = list.slice(0, 600);
     return `
     <section class="panel">
       <div class="filter-row">
