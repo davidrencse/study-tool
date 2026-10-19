@@ -1,16 +1,77 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#101310"><title>KernelQuest — OS Midterm Lab</title><meta name="description" content="Mission-based operating systems training: x86, xv6, scheduling, paging, fork, mock exams and interactive labs."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"></head>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090909">
+<meta name="description" content="KernelQuest — a high-fidelity operating systems study environment. Guided x86 xv6 missions, hands-on CPU and paging labs, and mock midterms.">
+<title>KernelQuest — OS Learning Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;450;500;550;600;650;700;750;800;850&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="theme.css">
+</head>
 <body>
 <div class="app">
-<aside class="sidebar" id="sidebar"><div class="brand"><div class="brand-icon">K<span>_</span></div><div><strong>KERNEL<span>QUEST</span></strong><small>OPERATING SYSTEMS LAB</small></div></div><div class="course-pill"><span class="live-dot"></span> CS 3224 <span>·</span> FALL 2026</div>
-<div class="nav-label">YOUR WORKSPACE</div><nav id="nav">
-<button class="nav-item active" data-view="dashboard"><span class="nav-ico">◈</span> Mission control <span class="nav-kbd">01</span></button>
-<button class="nav-item" data-view="path"><span class="nav-ico">▤</span> Learning path <span class="nav-kbd">02</span></button>
-<button class="nav-item" data-view="labs"><span class="nav-ico">⌘</span> Interactive labs <span class="nav-kbd">03</span></button>
-<button class="nav-item" data-view="exam"><span class="nav-ico">◷</span> Mock midterm <span class="nav-kbd">04</span></button>
-<button class="nav-item" data-view="review"><span class="nav-ico">✳</span> Weak spot review <span class="nav-kbd">05</span></button>
-<button class="nav-item" data-view="sources"><span class="nav-ico">⌁</span> Reference vault <span class="nav-kbd">06</span></button></nav>
-<div class="sidebar-bottom"><div class="mini-heading">MIDTERM READINESS <span id="sidePct">0%</span></div><div class="progress"><div id="sideBar"></div></div><div class="side-stats"><span id="sideDone">0 / 12 core missions</span><span id="sideXp">0 XP</span></div><button id="resetBtn" class="text-button">↺ Reset learning progress</button><div class="sidebar-foot">LOCAL PROGRESS STORAGE <span class="status-dot"></span></div></div></aside>
-<div class="main-shell"><header class="topbar"><button class="mobile-menu" id="menuBtn" aria-label="Open navigation">☰</button><div class="breadcrumb"><span>KERNELQUEST</span> <span class="slash">/</span> <strong id="crumb">MISSION CONTROL</strong></div><div class="top-right"><span class="today-badge"><span class="live-dot"></span> TRAINING ENVIRONMENT</span><span class="xp-badge" id="xpBadge">✦ 0 XP</span><span class="avatar">OS</span></div></header><main id="screen" tabindex="-1"></main><footer class="site-footer"><span>KERNELQUEST / CS 3224</span><span>ORIGINAL TRAINING CONTENT · x86 XV6 · NOT AFFILIATED WITH NYU</span></footer></div></div>
-<div class="toast" id="toast" role="status"></div>
-<script src="content.js"></script><script src="app.js"></script></body></html>
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand">
+    <div class="brand-icon" aria-hidden="true">k<span>↗</span></div>
+    <div><strong>kernel<span>quest</span><span class="brand-period">.</span></strong><small>THE OS LEARNING STUDIO</small></div>
+  </div>
+  <div class="workspace-switch">
+    <div class="workspace-emblem" aria-hidden="true">OS</div>
+    <div class="workspace-copy"><strong>Operating systems</strong><span>CS 3224 / Fall 2026</span></div>
+    <span class="workspace-caret" aria-hidden="true">⌄</span>
+  </div>
+  <div class="nav-label">WORKSPACE</div>
+  <nav id="nav" aria-label="Study navigation">
+    <button type="button" class="nav-item active" data-view="dashboard"><span class="nav-ico" aria-hidden="true">◈</span><span>Overview</span><span class="nav-kbd">01</span></button>
+    <button type="button" class="nav-item" data-view="path"><span class="nav-ico" aria-hidden="true">▦</span><span>Learning path</span><span class="nav-kbd">02</span></button>
+    <button type="button" class="nav-item" data-view="labs"><span class="nav-ico" aria-hidden="true">⌘</span><span>Lab environments</span><span class="nav-kbd">03</span></button>
+    <div class="nav-label nav-divider-label">ASSESSMENT</div>
+    <button type="button" class="nav-item" data-view="exam"><span class="nav-ico" aria-hidden="true">◎</span><span>Mock examination</span><span class="nav-kbd">04</span></button>
+    <button type="button" class="nav-item" data-view="review"><span class="nav-ico" aria-hidden="true">✳</span><span>Review queue</span><span class="nav-kbd">05</span></button>
+    <div class="nav-label nav-divider-label">RESOURCES</div>
+    <button type="button" class="nav-item" data-view="sources"><span class="nav-ico" aria-hidden="true">▤</span><span>Source library</span><span class="nav-kbd">06</span></button>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="sidebar-progress-top"><span class="micro">COURSE PROGRESS</span><strong id="sidePct">0%</strong></div>
+    <div class="progress" aria-label="Core mission progress"><div id="sideBar"></div></div>
+    <div class="side-stats"><span id="sideDone">0 / 12 core missions</span><span id="sideXp">0 XP</span></div>
+    <button type="button" id="resetBtn" class="text-button">↺ Reset progress</button>
+    <div class="sidebar-foot"><span><span class="status-dot"></span> SAVED LOCALLY</span><span>v2.0</span></div>
+  </div>
+</aside>
+<div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+<div class="main-shell">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button type="button" class="mobile-menu" id="menuBtn" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><span>☰</span></button>
+      <div class="breadcrumb"><span>STUDIO</span><span class="slash">/</span><strong id="crumb">OVERVIEW</strong></div>
+    </div>
+    <div class="top-right">
+      <span class="today-badge"><span class="live-dot"></span> SELF-PACED TRAINING</span>
+      <button type="button" class="command-trigger" id="commandBtn" aria-label="Open quick navigation"><span class="search-glyph">⌕</span> Search <kbd>⌘ K</kbd></button>
+      <span class="top-separator" aria-hidden="true"></span>
+      <span class="xp-badge" id="xpBadge">✦ 0 XP</span>
+      <span class="avatar" title="Operating Systems">K</span>
+    </div>
+  </header>
+  <main id="screen" tabindex="-1" aria-live="polite"></main>
+  <footer class="site-footer"><span>© 2026 KERNELQUEST STUDIO</span><span>BUILT FOR LEARNING · x86 XV6 · INDEPENDENT STUDY TOOL</span></footer>
+</div>
+</div>
+<div class="palette-backdrop" id="commandPalette" hidden>
+  <div class="palette-panel" role="dialog" aria-modal="true" aria-labelledby="paletteTitle">
+    <div class="palette-search"><span class="search-glyph" aria-hidden="true">⌕</span><input type="search" id="paletteInput" placeholder="Search missions, labs, views…" autocomplete="off" aria-labelledby="paletteTitle"><kbd>ESC</kbd></div>
+    <div id="paletteTitle" class="palette-group-label">QUICK NAVIGATION</div>
+    <div class="palette-items" id="paletteItems"></div>
+    <div class="palette-footer"><span><kbd>↑</kbd><kbd>↓</kbd> to navigate</span><span><kbd>↵</kbd> to open</span><span><kbd>esc</kbd> to close</span></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="content.js"></script><script src="app.js"></script>
+<script src="ui-enhancements.js"></script>
+</body>
+</html>
