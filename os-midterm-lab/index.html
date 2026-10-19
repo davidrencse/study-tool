@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#101310"><title>KernelQuest — OS Midterm Lab</title><meta name="description" content="Mission-based operating systems training: x86, xv6, scheduling, paging, fork, mock exams and interactive labs."><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="app">
+<aside class="sidebar" id="sidebar"><div class="brand"><div class="brand-icon">K<span>_</span></div><div><strong>KERNEL<span>QUEST</span></strong><small>OPERATING SYSTEMS LAB</small></div></div><div class="course-pill"><span class="live-dot"></span> CS 3224 <span>·</span> FALL 2026</div>
+<div class="nav-label">YOUR WORKSPACE</div><nav id="nav">
+<button class="nav-item active" data-view="dashboard"><span class="nav-ico">◈</span> Mission control <span class="nav-kbd">01</span></button>
+<button class="nav-item" data-view="path"><span class="nav-ico">▤</span> Learning path <span class="nav-kbd">02</span></button>
+<button class="nav-item" data-view="labs"><span class="nav-ico">⌘</span> Interactive labs <span class="nav-kbd">03</span></button>
+<button class="nav-item" data-view="exam"><span class="nav-ico">◷</span> Mock midterm <span class="nav-kbd">04</span></button>
+<button class="nav-item" data-view="review"><span class="nav-ico">✳</span> Weak spot review <span class="nav-kbd">05</span></button>
+<button class="nav-item" data-view="sources"><span class="nav-ico">⌁</span> Reference vault <span class="nav-kbd">06</span></button></nav>
+<div class="sidebar-bottom"><div class="mini-heading">MIDTERM READINESS <span id="sidePct">0%</span></div><div class="progress"><div id="sideBar"></div></div><div class="side-stats"><span id="sideDone">0 / 12 core missions</span><span id="sideXp">0 XP</span></div><button id="resetBtn" class="text-button">↺ Reset learning progress</button><div class="sidebar-foot">LOCAL PROGRESS STORAGE <span class="status-dot"></span></div></div></aside>
+<div class="main-shell"><header class="topbar"><button class="mobile-menu" id="menuBtn" aria-label="Open navigation">☰</button><div class="breadcrumb"><span>KERNELQUEST</span> <span class="slash">/</span> <strong id="crumb">MISSION CONTROL</strong></div><div class="top-right"><span class="today-badge"><span class="live-dot"></span> TRAINING ENVIRONMENT</span><span class="xp-badge" id="xpBadge">✦ 0 XP</span><span class="avatar">OS</span></div></header><main id="screen" tabindex="-1"></main><footer class="site-footer"><span>KERNELQUEST / CS 3224</span><span>ORIGINAL TRAINING CONTENT · x86 XV6 · NOT AFFILIATED WITH NYU</span></footer></div></div>
+<div class="toast" id="toast" role="status"></div>
+<script src="content.js"></script><script src="app.js"></script></body></html>
