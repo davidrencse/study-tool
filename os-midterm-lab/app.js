@@ -146,6 +146,28 @@ const action=e.target.closest('[data-action]');if(!action)return;const a=action.
 switch(a){case'next':gotoNext();break;case'startquiz':beginQuiz();break;case'quiznext':nextQuiz();break;case'examstart':startExam();break;case'examprev':if(exam){exam.index=Math.max(0,exam.index-1);render();startTimer();}break;case'examnext':if(exam){if(exam.index>=exam.questions.length-1){if(confirm('Submit now? You have answered '+Object.keys(exam.answers).length+' of '+exam.questions.length+'.'))submitExam();}else{exam.index++;render();startTimer();}}break;case'examsubmit':if(confirm('Submit the exam and score all answers?'))submitExam();break;case'examreset':exam=null;setView('exam');break;case'seqreset':labState.sequence.picked=[];render();break;default:if(['dashboard','path','labs','exam','review','sources'].includes(a)){if(a==='exam')exam=null;setView(a);}else labAction(a);}});
 el('menuBtn').onclick=()=>el('sidebar').classList.toggle('open');
 el('resetBtn').onclick=()=>{if(confirm('Delete all locally saved KernelQuest mission, XP and exam results?')){state=JSON.parse(JSON.stringify(defaults));save();lessonQuiz=null;exam=null;setView('dashboard');toast('LEARNING PROGRESS RESET');}};
+window.KernelQuestNavigate={
+  view(v){
+    if(exam && !exam.result && v!=='exam' && !confirm('Leave the timed exam? Your in-progress answers will be discarded.'))return false;
+    if(v!=='exam')exam=null;
+    lessonQuiz=null;
+    setView(v);
+    return true;
+  },
+  mission(id){
+    if(exam && !exam.result && !confirm('Leave the timed exam? Your in-progress answers will be discarded.'))return false;
+    exam=null;lessonQuiz=null;
+    setView('mission',{mission:id});
+    return true;
+  },
+  lab(id){
+    if(exam && !exam.result && !confirm('Leave the timed exam? Your in-progress answers will be discarded.'))return false;
+    exam=null;setView('lab',{lab:id});
+    return true;
+  },
+  current(){return {view,examActive:Boolean(exam && !exam.result)};},
+  labs:LABS.map(x=>({id:x.id,name:x.name,description:x.desc}))
+};
 render();
 window.KernelQuestTest={schedule,fmt,sequenceCases};
 })();
